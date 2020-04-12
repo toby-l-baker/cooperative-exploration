@@ -1,0 +1,15 @@
+<launch>
+
+    <arg name="robot_name"/>
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>
+    <arg name="theta" default="0"/>
+
+    <!-- Adds the robot to the environment -->
+    <node name="add_robot"
+        pkg="stdr_robot"
+        type="robot_handler"
+        args="add $(find launchers)/resources/robots/$(arg robot_name).yaml $(arg x) $(arg y) $(arg theta)"/>
+
+
+</launch>

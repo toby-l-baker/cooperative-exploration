@@ -5,6 +5,18 @@ Energy Efficient, Collaborative Robot Exploration
 
 ### Tarkan
 
+#### Accomplished
+
+1. Created map package
+1. Created launchers package
+2. Created a basic map that captures some of our simplest use cases
+1. Add a robot to stdr sim in the launch file in launchers
+2. Add a sensor to that robot in the launch file in launchers
+
+#### Planned
+
+1. Add a launch file that echos that sensor in launchers
+1. Add a launch file that starts teleop control for a given robot
 
 ### Toby 
 

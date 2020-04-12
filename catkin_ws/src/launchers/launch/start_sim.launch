@@ -1,0 +1,16 @@
+<launch>
+    <arg name="robot_name" default="pandora_robot"/>
+
+    <!-- Start the stdr simulation with the chosen map -->
+    <include file="$(find launchers)/launch/server_with_map_and_gui.launch">
+
+    </include>
+
+
+    <!-- Add the robot to the simulation -->
+    <include file="$(find launchers)/launch/add_robot.launch">
+        <arg name="robot_name" value="$(arg robot_name)"/>
+    </include>
+
+
+</launch>
