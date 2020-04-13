@@ -1,0 +1,25 @@
+<launch>
+    <arg name="robot_name" default="pandora_robot"/>
+
+    <!-- Start the stdr simulation with the chosen map -->
+    <include file="$(find launchers)/launch/server_with_map_and_gui.launch">
+
+    </include>
+
+
+    <!-- Add the robot to the simulation -->
+    <include file="$(find launchers)/launch/add_robot.launch">
+        <arg name="robot_name" value="$(arg robot_name)"/>
+        <arg name="x" value="7"/>
+        <arg name="y" value="7"/>
+        <arg name="theta" value="0"/>
+    </include>
+
+    <node pkg="gmapping" type="slam_gmapping" name="gmapping_node" output="screen" >
+        <remap from="scan" to="robot0/laser_0" />
+        <param name="base_frame" value="/robot0" />
+        <remap from="map" to="/gmapping/map" />
+    </node>
+
+    <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping.rviz"/>
+</launch>
