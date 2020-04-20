@@ -2,4 +2,4 @@ catkin_ws/build/
 catkin_ws/devel/
 catkin_ws/src/stdr_simulator/
 catkin_ws/src/turtlebot/
-catkin_ws/src/frontier_exploration/
+catkin_ws/src/m-explore/
