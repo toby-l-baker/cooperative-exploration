@@ -26,9 +26,14 @@ Energy Efficient, Collaborative Robot Exploration
 
 ### Toby 
 
+### Accomplished
 1. Initialise repo
-2. Setup STDR Sim
-3. Create STDR Interface
+2. Setup gmapping with STDR Sim
+3. Reading: Energy Efficient Exploration for Mobile Robots, Fronteir Exploration, Frontier Exploration for Mobile Robots.
+
+### Planned
+1. Spawn multiple robots
+2. Have multiple robots mapping
 
 ## Install Instructions
 
