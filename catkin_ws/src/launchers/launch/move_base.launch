@@ -1,7 +1,7 @@
 <launch>
     <arg name="robot_id" default="robot0"/>
 	<!-- Assumes that "laser0" topic is online -->
-	<arg name="sensor_topic" default="laser0"/>
+	<arg name="sensor_topic" default="laser_0"/>
 	<!-- Assumes that "odom" topic is online -->
 	<arg name="odom_topic" default="odom"/>
 	<!-- Assumes that "cmd_vel" topic is online -->
