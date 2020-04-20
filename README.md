@@ -47,3 +47,4 @@ Energy Efficient, Collaborative Robot Exploration
 1. Install ROS Distro for your OS
 2. Install [STDR-Simulator ROS package](http://wiki.ros.org/stdr_simulator/Tutorials/Set%20up%20STDR%20Simulator): I had to install from git as I am using Melodic.
 1. Install [turltebot\_teleop ROS package](http://wiki.ros.org/turtlebot_teleop) for teleop control
+2. Install explore_lite http://mirror-eu.wiki.ros.org/explore_lite.html?distro=kinetic
