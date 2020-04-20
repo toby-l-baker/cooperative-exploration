@@ -1,0 +1,16 @@
+<launch>
+    <arg name="robot_id"/>
+    <arg name="sensor_topic" default="laser_0"/>
+
+    <node pkg="gmapping" type="slam_gmapping" name="gmapping_node" output="screen">
+        <remap from="scan" to="$(arg robot_id)/laser_0" />
+        <param name="base_frame" value="$(arg robot_id)" />
+
+        <!-- Set the map size to be smaller -->
+        <param name="xmin" value="-10.0"/>
+        <param name="ymin" value="-10.0"/>
+        <param name="xmax" value="10.0"/>
+        <param name="ymax" value="10.0"/>
+    </node>
+
+</launch>

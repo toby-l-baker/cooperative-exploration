@@ -18,10 +18,10 @@
         <arg name="theta" value="0"/>
     </include>
 
-    <node pkg="gmapping" type="slam_gmapping" name="gmapping_node" output="screen" >
-        <remap from="scan" to="$(arg robot_id)/laser_0" />
-        <param name="base_frame" value="$(arg robot_id)" />
-    </node>
+    <include file="$(find launchers)/launch/gmapping.launch">
+        <arg name="robot_id" value="$(arg robot_id)"/>
+        <arg name="sensor_topic" value="laser_0"/>
+    </include>
 
     <include file="$(find launchers)/launch/move_base.launch">
     </include>
