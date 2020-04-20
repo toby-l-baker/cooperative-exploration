@@ -4,7 +4,7 @@
 # Implements the explorer server class
 #
 
-from explorer import ExplorerError
+from explorer import MapListener, ExplorerError
 
 class ExplorerServer():
     """
