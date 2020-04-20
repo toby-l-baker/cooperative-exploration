@@ -13,6 +13,7 @@ Energy Efficient, Collaborative Robot Exploration
 1. Add a robot to stdr sim in the launch file in launchers
 2. Add a sensor to that robot in the launch file in launchers
 1. Add a launch file that starts teleop control for a given robot
+1. Created a node to measure current path length of a robot
 
 #### Planned
 
@@ -23,6 +24,9 @@ Energy Efficient, Collaborative Robot Exploration
     1. Visualize occupancy grid in RVIZ
     1. Create launch file for occupancy grid
     1. Expose occupancy grid as a useful topic
+1. Try out existing exploration packages
+1. Try out Move Base on the simulation, maybe in conjunction with above
+
 
 ### Toby 
 

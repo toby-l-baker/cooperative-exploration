@@ -1,0 +1,30 @@
+<launch>
+    <arg name="robot_id" default="robot0"/>
+	<!-- Assumes that "laser0" topic is online -->
+	<arg name="sensor_topic" default="laser0"/>
+	<!-- Assumes that "odom" topic is online -->
+	<arg name="odom_topic" default="odom"/>
+	<!-- Assumes that "cmd_vel" topic is online -->
+	<arg name="cmd_vel_topic" default="cmd_vel"/>
+
+    <!--
+	<include file="$(find amcl)/examples/amcl_diff.launch"/>
+    -->
+
+
+	<node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+		<rosparam file="$(find launchers)/resources/costmaps/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
+		<rosparam file="$(find launchers)/resources/costmaps/costmap_common_params.yaml" command="load" ns="local_costmap" />
+		<rosparam file="$(find launchers)/resources/costmaps/local_costmap_params.yaml" command="load" />
+		<rosparam file="$(find launchers)/resources/costmaps/global_costmap_params.yaml" command="load" /> 
+		<rosparam file="$(find launchers)/resources/planners/base_local_planner_params.yaml" command="load" />
+
+        <!-- Overwrite the topics above -->
+        <param name="laser_scan_sensor/sensor_frame" value="$(arg robot_id)_$(arg sensor_topic)"/>
+        <param name="laser_scan_sensor/topic" value="$(arg robot_id)/$(arg sensor_topic)"/>
+        <param name="global_costmap/robot_base_frame" value="$(arg robot_id)"/>
+        <param name="local_costmap/robot_base_frame" value="$(arg robot_id)"/>
+        <remap from="cmd_vel" to="$(arg robot_id)/$(arg cmd_vel_topic)"/>
+        <remap from="odom" to="$(arg robot_id)/$(arg odom_topic)"/>
+	</node>
+</launch>
