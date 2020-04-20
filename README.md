@@ -4,28 +4,27 @@ Energy Efficient, Collaborative Robot Exploration
 ## To-Do
 
 1. Implement ExplorerServer and ExplorerClient to communicate
-  1. ExplorerClient indicates it needs a target
-  2. ExplorerServer uses its known list of frontiers and robot location to decide waypoint
-  3. ExplorerClient takes job and travels to waypoint
+   1. ExplorerClient indicates it needs a target
+   2. ExplorerServer uses its known list of frontiers and robot location to decide waypoint
+   3. ExplorerClient takes job and travels to waypoint
 2. Integrate map merging package
-  1. Each robot's gmapping system should create their own map (/robot0/map, /robot0/map\_metadata)
-  2. The multirobot\_map\_merge package should combine the maps and publish a uniform map to /map
-  3. Each robot's move\_base node can listen to the global /map topic to understand where they are
+   1. Each robot's gmapping system should create their own map (/robot0/map, /robot0/map\_metadata)
+   2. The multirobot\_map\_merge package should combine the maps and publish a uniform map to /map
+   3. Each robot's move\_base node can listen to the global /map topic to understand where they are
 
 ### Tarkan
 
 #### Accomplished
 
-1. Created map package
-1. Created launchers package
+1. Created packages (map for maps, launchers for launch files, nodes for general nodes)
 2. Created a basic map that captures some of our simplest use cases
-1. Add a robot to stdr sim in the launch file in launchers
-2. Add a sensor to that robot in the launch file in launchers
+1. Add a robot with sensor to stdr sim in the launch file in launchers
 1. Add a launch file that starts teleop control for a given robot
 1. Created a node to measure current path length of a robot
-1. Started basic explorer package that provides a place for explorer code to go
-1. Try out Move Base on the simulation, maybe in conjunction with above
-1. Started MapListener to listen to and parse maps
+1. Started explorer package
+   1. ExploreServer and ExplorerClient class shells
+   1. MapListener class shell to listen to and parse maps
+1. Integrated move\_base with STDR sim
 
 #### Planned
 
