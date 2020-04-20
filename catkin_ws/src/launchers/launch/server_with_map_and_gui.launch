@@ -1,16 +1,18 @@
 <launch>
 
+    <arg name="map_file" default="$(find stdr_resources)/maps/sparse_obstacles.yaml"/>
+
     <node pkg="nodelet" type="nodelet" name="robot_manager" args="manager">
         <remap from="map" to="stdr/map"/>
     </node>
-
 
     <node type="stdr_server_node"
         pkg="stdr_server"
         name="stdr_server"
         output="screen"
-        args="$(find stdr_resources)/maps/sparse_obstacles.yaml">
+        args="$(arg map_file)">
         <remap from="map" to="stdr/map"/>
+        <remap from="map_metadata" to="stdr/map_metadata"/>
     </node>
 
     <node pkg="tf" type="static_transform_publisher" name="world2map" args="0 0 0 0 0 0  world map 100" />
