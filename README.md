@@ -38,6 +38,8 @@ Energy Efficient, Collaborative Robot Exploration
 ### Planned
 1. Spawn multiple robots
 2. Have multiple robots mapping
+3. Frontier ID given a costmap
+4. Setup frontier exploration package
 
 ## Install Instructions
 
