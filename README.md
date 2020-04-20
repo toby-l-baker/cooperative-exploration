@@ -14,6 +14,7 @@ Energy Efficient, Collaborative Robot Exploration
 2. Add a sensor to that robot in the launch file in launchers
 1. Add a launch file that starts teleop control for a given robot
 1. Created a node to measure current path length of a robot
+1. Added a very basic explorer package that provides a place for explorer code to go
 
 #### Planned
 
