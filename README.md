@@ -28,8 +28,8 @@ Energy Efficient, Collaborative Robot Exploration
 
 #### Planned
 
-2. Create Service files for ExplorerServer and ExplorerClient to communicate
-1. Implement MapListener to listen to global map topic and find frontiers
+1. Create Service files for ExplorerServer and ExplorerClient to communicate
+2. Implement MapListener to listen to global map topic and find frontiers
 
 ### Toby 
 
