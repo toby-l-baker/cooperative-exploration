@@ -8,7 +8,7 @@
     <!-- Assumes that "cmd_vel" topic is online -->
     <arg name="cmd_vel_topic" default="cmd_vel"/>
 
-    <node pkg="explore_lite" type="explore" respawn="false" name="explore" output="screen">
+    <node pkg="explore_lite" type="explore" respawn="false" name="explore" output="screen" ns="$(arg robot_id)">
         <param name="robot_base_frame" value="$(arg robot_id)"/>
         <param name="costmap_topic" value="map"/>
         <param name="costmap_updates_topic" value="map_updates"/>
