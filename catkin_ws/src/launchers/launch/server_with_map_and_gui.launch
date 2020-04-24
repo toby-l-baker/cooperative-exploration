@@ -17,6 +17,8 @@
 
     <node pkg="tf" type="static_transform_publisher" name="world2map" args="0 0 0 0 0 0  world map 100" />
 
+    <node pkg="tf" type="static_transform_publisher" name="world2map_merge" args="6 6 0 0 0 0  world map_merge 100" />
+
     <node name="$(anon stdr_gui_node)" pkg="stdr_gui" type="stdr_gui_node">
         <remap from="map" to="stdr/map"/>
     </node>
