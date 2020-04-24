@@ -38,11 +38,13 @@ Energy Efficient, Collaborative Robot Exploration
 2. Setup gmapping with STDR Sim
 3. Reading: Energy Efficient Exploration for Mobile Robots, Fronteir Exploration, Frontier Exploration for Mobile Robots.
 3. Setup frontier exploration package
-
-### Planned
 1. Spawn multiple robots
 2. Have multiple robots mapping
 1. Integrate multiple map merging package (use explorer as a guide)
+1. Setup Frontier Location Framwork
+
+### Planned
+1. Frontier ID debugging
 
 
 ## Install Instructions
