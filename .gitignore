@@ -3,6 +3,6 @@ catkin_ws/devel/
 catkin_ws/src/stdr_simulator/
 catkin_ws/src/turtlebot/
 catkin_ws/src/m-explore/
-catkin_ws/
 catkin_ws/frames*
 frames*
+catkin_ws/src/explorer/src/explorer/map_listener.pyc
