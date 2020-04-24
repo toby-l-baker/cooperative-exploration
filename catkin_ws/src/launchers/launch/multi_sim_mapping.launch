@@ -1,0 +1,40 @@
+<launch>
+    <arg name="use_sim_time" default="false"/>
+    <arg name="robot_file" default="pandora_robot"/>
+
+    <param name="/use_sim_time" value="$(arg use_sim_time)"/>
+
+    <!-- Start the stdr simulation with the chosen map -->
+    <include file="$(find launchers)/launch/server_with_map_and_gui.launch"/>
+
+    <!-- Add the robot0 to the simulation -->
+    <include file="$(find launchers)/launch/launch_robot.launch">
+        <arg name="robot_id" value="robot0"/>
+        <arg name="x" value="7"/>
+        <arg name="y" value="7.5"/>
+        <arg name="theta" value="0"/>
+    </include>
+
+    <!-- Add the robot1 to the simulation -->
+    <include file="$(find launchers)/launch/launch_robot.launch">
+        <arg name="robot_id" value="robot1"/>
+        <arg name="x" value="9"/>
+        <arg name="y" value="7"/>
+        <arg name="theta" value="1.57"/>
+    </include>
+
+    <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi.rviz"/>
+
+    <node pkg="multirobot_map_merge" type="map_merge" respawn="false" name="map_merge" output="screen">
+        <param name="robot_map_topic" value="map"/>
+        <param name="robot_namespace" value="robot"/> <!--limits map topic it uses-->
+        <param name="merged_map_topic" value="/map"/>
+        <param name="world_frame" value="map_merge"/>
+        <param name="known_init_poses" value="true"/>
+        <param name="merging_rate" value="0.5"/>
+        <param name="discovery_rate" value="0.05"/>
+        <param name="estimation_rate" value="0.1"/>
+        <param name="estimation_confidence" value="1.0"/>
+    </node>
+
+</launch>

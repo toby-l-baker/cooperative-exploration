@@ -266,6 +266,9 @@ class MapListener():
             marker_pose.orientation.w = 1
             size = np.clip(float(front.size), 0.0, 50.0)
             size /= 100
+
+            # For saving frontier points
+            # np.savetxt('/home/toby/front_test/front{}.txt'.format(i), front.points)
             
             marker = Marker(header=Header(stamp=rospy.Time.now(),
                                           frame_id="map"),
@@ -286,7 +289,8 @@ class MapListener():
         self.occupancy_grid = msg
         if self.initialized:
             self.graph.map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
-            np.savetxt('/home/toby/front_test/map.txt', self.graph.map)
+            # For saving maps
+            # np.savetxt('/home/toby/front_test/map.txt', self.graph.map)
             frontiers = self.graph.search()
             self.get_frontiers(frontiers)
         self.setup()

@@ -1,0 +1,14 @@
+ <launch>
+    <include file="$(find launchers)/launch/multi_sim_mapping.launch">
+    </include>
+
+    <include file="$(find launchers)/launch/explore.launch">
+        <arg name="robot_id" value="robot0"/>
+    </include>
+
+
+    <include file="$(find launchers)/launch/explore.launch">
+        <arg name="robot_id" value="robot1"/>
+    </include>
+
+</launch>

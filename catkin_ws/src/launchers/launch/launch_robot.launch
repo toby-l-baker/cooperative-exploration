@@ -1,0 +1,42 @@
+<launch>
+    <arg name="robot_id" default="robot0"/>
+    <arg name="robot_file" default="pandora_robot"/>
+    <arg name="x" default="7"/>
+    <arg name="y" default="7"/>
+    <arg name="theta" default="0"/>
+
+    <!--Setup Initial Pose for Map Merging Package-->
+    <group ns="/$(arg robot_id)/map_merge">
+        <param name="init_pose_x" value="0.0"/>
+        <param name="init_pose_y" value="0.0"/>
+        <param name="init_pose_z" value="0.0"/>
+        <param name="init_pose_yaw" value="0.0"/>
+    </group>
+
+    <!--Setup Initial Pose for Frontier ID Package-->
+    <group ns="/$(arg robot_id)">
+        <param name="init_pose_x" value="$(arg x)"/>
+        <param name="init_pose_y" value="$(arg y)"/>
+        <!-- <param name="init_pose_z" value="0.0"/>
+        <param name="init_pose_yaw" value="$(arg theta)"/> -->
+    </group> 
+
+    <include file="$(find launchers)/launch/add_robot.launch">
+        <arg name="robot_file" value="$(arg robot_file)"/>
+        <arg name="x" value="$(arg x)"/>
+        <arg name="y" value="$(arg y)"/>
+        <arg name="theta" value="$(arg theta)"/>
+        <arg name="node_name" value="add_$(arg robot_id)"/>
+    </include>
+
+    <include file="$(find launchers)/launch/gmapping.launch">
+        <arg name="robot_id" value="$(arg robot_id)"/>
+        <arg name="sensor_topic" value="laser_0"/>
+    </include>
+
+    <include file="$(find launchers)/launch/move_base.launch">
+        <arg name="robot_id" value="$(arg robot_id)"/>
+        <arg name="sensor_topic" value="laser_0"/>
+    </include>
+
+</launch>
