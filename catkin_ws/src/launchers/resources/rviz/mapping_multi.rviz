@@ -9,6 +9,7 @@ Panels:
         - /TF1/Tree1
         - /Map2
         - /MarkerArray1
+        - /Pose1
       Splitter Ratio: 0.46176469326019287
     Tree Height: 1088
   - Class: rviz/Selection
@@ -270,7 +271,7 @@ Visualization Manager:
       Axes Length: 1
       Axes Radius: 0.10000000149011612
       Class: rviz/Pose
-      Color: 255; 25; 0
+      Color: 32; 74; 135
       Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
@@ -333,7 +334,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 58.13172149658203
+      Scale: 180.54833984375
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 8.215819358825684
@@ -355,5 +356,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1687
-  X: 67
+  X: 1753
   Y: 27

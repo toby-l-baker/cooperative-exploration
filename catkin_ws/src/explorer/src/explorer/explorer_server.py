@@ -52,13 +52,6 @@ class ExplorerServer():
     ###############################
     # Helper functions here
     ###############################
-    def get_yaw_from_pose(self, robot_pose):
-        r_quat = (robot_pose.orientation.x,
-                  robot_pose.orientation.y,
-                  robot_pose.orientation.z,
-                  robot_pose.orientation.w)
-        r_theta = tf.transformations.euler_from_quaternion(r_quat)[2] # yaw of robot frame
-        return r_theta
 
     def get_pose_stamped_from_tf(self, trans, rot):
         ps = PoseStamped()
@@ -90,7 +83,7 @@ class ExplorerServer():
         robot_position: (x, y, z)
         robot_orientation: (roll, pitch, yaw)
         frontier_position: front["location"]
-        angle: front["angle]
+        angle: front["angle"] - angle is relative to the robots position 
         """
         rf_x = frontier_position[0] - robot_position[0] # frontier pos relative to robot
         rf_y = frontier_position[1] - robot_position[1]
@@ -98,13 +91,13 @@ class ExplorerServer():
         ret = None
         # print("({}, {})".format(rf_x, rf_y))
         if (rf_x > 0 and rf_y > 0):
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] + (-angle + 3*np.pi/2))
+            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] + (-angle + np.pi/2))
         elif (rf_x < 0 and rf_y > 0):
             ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] + (angle + np.pi/2))
         elif (rf_x > 0 and rf_y < 0):
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - + (-angle + np.pi/2))
+            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - (-angle + np.pi/2))
         else:
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - + (angle + np.pi/2))
+            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - (angle + np.pi/2))
         return ret
 
     def test_selection(self):
@@ -130,26 +123,29 @@ class ExplorerServer():
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
     
-    def rot_z(self, angle):
+    def from_quaternion(self, msg):
         """
-        Return rotation matrix about z-axis given an angle in radians
+        Returns a numpy array from a ROS quaternion
         """
-        om_hat = np.array([[0, -1, 0],
-                            [1, 0, 0],
-                            [0, 0, 0]])
-        R = np.eye(3) + om_hat*np.sin(angle) + om_hat.dot(om_hat) * (1 - np.cos(angle))
+        return np.array([msg.x, msg.y, msg.z, msg.w])
+    
+    def from_position(self, msg):
+        """
+        Returns robot position as a numpy array
+        """
+        return np.array([msg.x, msg.y, msg.z])
 
-        return R
-
-    def get_homog(self, pos, angle):
+    def inverse_homog(self, mat):
         """
-            Returns 4x4 homogenous tranform given a rotation angle about z and the position of
-            one frame relative to another
+        Returns the invers of a homogeneous transformation matrix
         """
-        g = np.eye(4)
-        g[0:3, 0:3] = self.rot_z(angle)
-        g[0:3, 3] = np.array([pos[0], pos[1], 0])
-        return g
+        out = np.eye(4)
+        R = mat[0:3, 0:3]
+        p = mat[0:3, 3]
+        out[0:3, 0:3] = R.T
+        out[0:3, 3] = -np.transpose(R[0:3, 0:3]).dot(p)
+        assert(np.allclose(np.eye(4), mat.dot(out)))
+        return out
 
     def select_frontier(self, robot_pose, frontier_list):
         """
@@ -173,28 +169,34 @@ class ExplorerServer():
         outside = []
 
         #1. Get information about the robots position
-        r_x = robot_pose.position.x
-        r_y = robot_pose.position.y
-
+        r = self.from_position(robot_pose.position)
+        R = tf.transformations.quaternion_matrix(self.from_quaternion(robot_pose.orientation))
+        R[0:3, 3] = r 
+        R_inv = self.inverse_homog(R)
+        # print("R:\n {}\nR_inv:\n {}".format(R, R_inv))
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
             frontier_store = {}
-            x_t = r_x - frontier.centroid[0] # x transformed to robots coordinate frame
-            y_t = r_y - frontier.centroid[1] # y transformed to robots coordinate frame
-            dist = np.sqrt(x_t**2 + y_t**2)
-            angle = np.arctan2(x_t, y_t)
+            front_homog = np.hstack((frontier.centroid, np.array([0, 1])))
+            p = R_inv.dot(front_homog)
+            dist = np.sqrt(p[0]**2 + p[1]**2)
+            angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
+            if angle < 0:
+                angle = np.pi - angle
             frontier_store["angle"] = angle
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if dist <= self.sensing_radius:
+                # print("Point is Within\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 within.append(frontier_store)
             else:
+                # print("Point is Outside\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 outside.append(frontier_store)
 
-        #TODO: 4. If the 'within' frontiers is not empty then pick the one with the smallest theta (start at 0 to the left of the robot)
+        #4. If the 'within' frontiers is not empty then pick the one with the smallest theta (start at 0 to the left of the robot)
         target = None
-        best_angle = np.pi - 0.001
+        best_angle = 2*np.pi
         if len(within) > 0:
             for front in within:
                 if front["angle"] < best_angle:
@@ -202,7 +204,7 @@ class ExplorerServer():
                     best_angle = front["angle"]
             return target
 
-        #TODO: 5. If there are no frontiers near the robot then repeat (3) for the frontiers outside the sensing radius
+        #5. If there are no frontiers near the robot then repeat (3) for the frontiers outside the sensing radius
         elif len(outside) > 0:
             for front in outside:
                 if front["angle"] < best_angle:
