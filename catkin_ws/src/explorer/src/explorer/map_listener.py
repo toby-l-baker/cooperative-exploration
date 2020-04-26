@@ -163,12 +163,12 @@ class Graph:
                 if self.isNewFrontierCell(p):
                     self.frontier_flags[p[0], p[1]] = True
                     wp = map2world(np.array([p[1], p[0]]), self.info)
-                    output.points = np.vstack((output.points, wp))
+                    output.points.append(wp)
                     output.size += 1
                     output.centroid += wp
 
                     bfs_frontier.append(p)
-        
+        output.points = np.array(output.points)
         output.centroid /= output.size
         return output
 
@@ -191,7 +191,7 @@ class Frontier:
         self.initial = point
         self.centroid = np.ones(2)*point
         self.size = 1
-        self.points = np.array(self.initial)
+        self.points = [self.initial]
 
 
 class MapListener():
@@ -215,9 +215,7 @@ class MapListener():
         # Is it enough to remap these topics at a node level?
         # My guess is yes since there should only need to be a
         # single map listener for the explorer server
-        rospy.init_node('map_listener', anonymous=False)
         rospy.Subscriber("/map", OccupancyGrid, self.occupancy_callback)
-        # rospy.Subscriber("map_metadata", MapMetaData, self.metadata_callback)
 
         self.pub = rospy.Publisher("frontier_markers", MarkerArray, queue_size=10)
 
@@ -250,12 +248,11 @@ class MapListener():
     # Utility Functions here
     ############################
 
-    def get_frontiers(self, frontiers):
+    def publish_frontier_markers(self, frontiers):
         """
         Returns numpy array of frontiers in map
         """
         output = []
-        frontier_point_arrays = []
         for i, front in enumerate(frontiers):
             marker_pose = Pose()
             marker_pose.position.x = front.centroid[0]
@@ -268,7 +265,7 @@ class MapListener():
             size /= 100
 
             # For saving frontier points
-            # np.savetxt('/home/toby/front_test/front{}.txt'.format(i), front.points)
+            # np.savetxt('/home/toby/Documents/berkeley/robotics/cooperative-exploration/catkin_ws/src/explorer/src/front_test/front{}.txt'.format(i), front.points)
             
             marker = Marker(header=Header(stamp=rospy.Time.now(),
                                           frame_id="map"),
@@ -290,9 +287,9 @@ class MapListener():
         if self.initialized:
             self.graph.map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
             # For saving maps
-            # np.savetxt('/home/toby/front_test/map.txt', self.graph.map)
+            # np.savetxt('/home/toby/Documents/berkeley/robotics/cooperative-exploration/catkin_ws/src/explorer/src/front_test/map.txt', self.graph.map)
             frontiers = self.graph.search()
-            self.get_frontiers(frontiers)
+            self.publish_frontier_markers(frontiers)
         self.setup()
 
 if __name__ == "__main__":
