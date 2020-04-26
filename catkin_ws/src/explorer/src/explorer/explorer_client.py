@@ -4,7 +4,7 @@
 # Implements the explorer client class
 #
 
-from explorer import ExplorerError
+# from explorer import ExplorerError
 
 class ExplorerClient():
     """
@@ -19,13 +19,15 @@ class ExplorerClient():
 
     def setup(self):
         if self.initialized:
-            raise ExplorerError("ExplorerClient already initialized!")
+            # raise ExplorerError("ExplorerClient already initialized!")
+            pass
         # TODO finalize any setup needed
         self.initialized = True
 
     def loop(self):
         if not self.initialized:
-            raise ExplorerError("ExplorerClient not initialized!")
+            # raise ExplorerError("ExplorerClient not initialized!")
+            pass
         # TODO execute main functionality here
 
     ###############################

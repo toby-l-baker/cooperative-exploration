@@ -14,7 +14,7 @@
     <include file="$(find launchers)/launch/add_robot.launch">
         <arg name="robot_file" value="$(arg robot_file)"/>
         <arg name="x" value="7"/>
-        <arg name="y" value="7"/>
+        <arg name="y" value="7.5"/>
         <arg name="theta" value="0"/>
     </include>
 
