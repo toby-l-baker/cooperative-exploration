@@ -47,7 +47,7 @@ class Graph:
     def __init__(self, point, msg): # map is the full ros message
         # Setup map params
         self.info = msg.info
-        print(self.info)
+        # print(self.info)
         self.map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
         self.explored_flags = np.zeros_like(self.map, dtype=bool) # explored cells stored as booleans
         self.frontier_flags = np.zeros_like(self.map, dtype=bool) # frontier cells stored as booleans
@@ -65,7 +65,7 @@ class Graph:
         bfs = deque()
         bfs.append(start)
         explored_flags = np.zeros_like(self.map, dtype=bool)
-        print("Starting Search at for free space at {}".format(start))
+        # print("Starting Search at for free space at {}".format(start))
 
         if self.get_cell_type(self.map[start[0], start[1]]) == 1:
             return start
@@ -119,7 +119,7 @@ class Graph:
         start = self.nearest_free_cell(start)
         self.bfs.append(start) # may need to alter this to be the nearest free cell
         self.explored_flags[start[0], start[1]] = True
-        print("Starting Search at {}".format(start))
+        # print("Starting Search at {}".format(start))
         while self.bfs:
             idx = self.bfs.popleft()
             for p in self.children4(idx):
@@ -133,8 +133,8 @@ class Graph:
                     new_frontier = self.buildNewFrontier(p)
                     if new_frontier.size > self.min_frontier_size:
                         self.frontiers.append(new_frontier)
-                        print("New Frontier Added: {}".format((new_frontier.centroid[0], new_frontier.centroid[1])))
-        print("Returning Frontier Locations")
+                        # print("New Frontier Added: {}".format((new_frontier.centroid[0], new_frontier.centroid[1])))
+        # print("Returning Frontier Locations")
         return self.frontiers
                     
     

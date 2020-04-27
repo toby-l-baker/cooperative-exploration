@@ -7,6 +7,7 @@ def main():
     rospy.init_node("explorer_client")
 
     ec = ExplorerClient()
+    ec.server.setup()
     ec.setup()
 
     rate = rospy.Rate(10)

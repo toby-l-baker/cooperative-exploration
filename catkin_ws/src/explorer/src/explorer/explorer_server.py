@@ -40,7 +40,7 @@ class ExplorerServer():
             return
         # TODO finalize any setup needed
         while self.map_listener.frontiers == None:
-            continue
+            pass
         self.initialized = True
 
     def loop(self):
@@ -104,7 +104,7 @@ class ExplorerServer():
         try:
             (trans,rot) = self.listener.lookupTransform('/map', '/robot0', rospy.Time(0))
             euler = tf.transformations.euler_from_quaternion(rot)
-            front = self.select_frontier(self.get_pose_from_tf(trans, rot), self.map_listener.frontiers)
+            front = self.select_frontier(self.get_pose_from_tf(trans, rot))
             target_orientation = self.get_target_yaw(trans, euler, front["location"], front["angle"])
             target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
             target_pose = self.get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
@@ -115,7 +115,7 @@ class ExplorerServer():
         try:
             (trans,rot) = self.listener.lookupTransform('/map', '/robot1', rospy.Time(0))
             euler = tf.transformations.euler_from_quaternion(rot)
-            front = self.select_frontier(self.get_pose_from_tf(trans, rot), self.map_listener.frontiers)
+            front = self.select_frontier(self.get_pose_from_tf(trans, rot))
             target_orientation = self.get_target_yaw(trans, euler, front["location"], front["angle"])
             target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
             target_pose = self.get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
@@ -147,7 +147,28 @@ class ExplorerServer():
         assert(np.allclose(np.eye(4), mat.dot(out)))
         return out
 
-    def select_frontier(self, robot_pose, frontier_list):
+    def get_goal_pose(self, trans, rot):
+        """
+        Takes in the robots pose and returns the next goal pose
+        robot_pose: 
+                Type: geometry_msgs.msg Pose
+                What?: The current pose of the robot in world co-ordinates
+        robot_id 
+                Type: int, eg 0 for robot0
+        Returns: geometry_msgs.msg PoseStamped
+        """
+        euler = tf.transformations.euler_from_quaternion(rot)
+        # Get the frontier info 
+        front = self.select_frontier(self.get_pose_from_tf(trans, rot))
+        # Set target orientation to be direction connecting the robot and the frontier
+        target_orientation = self.get_target_yaw(trans, euler, front["location"], front["angle"])
+        target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
+        # Construct Pose Message
+        target_pose = self.get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
+        return target_pose
+
+
+    def select_frontier(self, robot_pose):
         """
         Function to be called when the each robot requests a new goal
 
@@ -164,6 +185,8 @@ class ExplorerServer():
                 What?: the location of the frontier where the direction is the direction of the vector
                     connecting the robot to the frontier.
         """
+
+        frontier_list=self.map_listener.frontiers
 
         within = []
         outside = []
