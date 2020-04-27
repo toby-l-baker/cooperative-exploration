@@ -11,6 +11,7 @@ Energy Efficient, Collaborative Robot Exploration
    1. Each robot's gmapping system should create their own map (/robot0/map, /robot0/map\_metadata)
    2. The multirobot\_map\_merge package should combine the maps and publish a uniform map to /map
    3. Each robot's move\_base node can listen to the global /map topic to understand where they are
+3. Implement a node to measure what % of the map has been mapped over time
 
 ### Tarkan
 
@@ -43,10 +44,11 @@ Energy Efficient, Collaborative Robot Exploration
 1. Integrate multiple map merging package (use explorer as a guide)
 1. Setup Frontier Location Framwork
 1. Frontier ID debugging
-
-### Planned
 1. Juggle around map listener interface so it is portable
 1. Create Explorer Server Functionality
+
+### Planned
+
 
 
 ## Install Instructions
