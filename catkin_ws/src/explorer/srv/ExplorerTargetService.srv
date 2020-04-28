@@ -1,0 +1,17 @@
+# Request message format
+int8 request_type
+string robot_id
+geometry_msgs/PoseStamped robot_pose
+
+# request_type constants
+int8 DEBUG=-1
+int8 GET_TARGET=0
+---
+# Response message format
+int8 status_code
+string robot_id
+geometry_msgs/PoseStamped target_position
+
+# status_code constants
+int8 FAILURE=0
+int8 SUCCESS=1
