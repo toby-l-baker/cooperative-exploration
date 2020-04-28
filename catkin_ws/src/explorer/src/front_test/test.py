@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 plt.figure(1)
 
-for i in range(18):
+for i in range(8):
     data = np.loadtxt("front{}.txt".format(i))
     if i < 10:
         plt.scatter(data[:, 0], data[:, 1], marker='x', label="{}_{}".format(i, len(data)))

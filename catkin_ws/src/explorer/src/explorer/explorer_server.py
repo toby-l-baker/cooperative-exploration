@@ -27,7 +27,7 @@ class ExplorerServer():
         self.map_listener.initial_y = rospy.get_param('/robot1/init_pose_y')
 
         # TODO: NEED TO GET ROBOT SENSING RADIUS
-        self.sensing_radius = 1 
+        self.sensing_radius = 4.09000015258789
 
         self.pub1 = rospy.Publisher('/robot0/target', PoseStamped, queue_size=10)
         self.pub2 = rospy.Publisher('/robot1/target', PoseStamped, queue_size=10)
@@ -85,19 +85,16 @@ class ExplorerServer():
         frontier_position: front["location"]
         angle: front["angle"] - angle is relative to the robots position 
         """
-        rf_x = frontier_position[0] - robot_position[0] # frontier pos relative to robot
-        rf_y = frontier_position[1] - robot_position[1]
+        # rf_x = frontier_position[0] - robot_position[0] # frontier pos relative to robot
+        # rf_y = frontier_position[1] - robot_position[1]
 
         ret = None
         # print("({}, {})".format(rf_x, rf_y))
-        if (rf_x > 0 and rf_y > 0):
+        
+        if angle < np.pi/2:
             ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] + (-angle + np.pi/2))
-        elif (rf_x < 0 and rf_y > 0):
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] + (angle + np.pi/2))
-        elif (rf_x > 0 and rf_y < 0):
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - (-angle + np.pi/2))
         else:
-            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - (angle + np.pi/2))
+            ret = (robot_orientation[0], robot_orientation[1], robot_orientation[2] - (angle-np.pi/2))
         return ret
 
     def test_selection(self):
@@ -206,14 +203,14 @@ class ExplorerServer():
             angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
             if angle < 0:
-                angle = np.pi - angle
+                angle = angle + 2*np.pi
             frontier_store["angle"] = angle
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
-            if dist <= self.sensing_radius:
+            if dist <= self.sensing_radius and frontier.big_enough:
                 # print("Point is Within\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 within.append(frontier_store)
-            else:
+            elif frontier.big_enough:
                 # print("Point is Outside\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 outside.append(frontier_store)
 

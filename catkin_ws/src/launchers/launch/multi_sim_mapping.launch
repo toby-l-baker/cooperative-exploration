@@ -5,6 +5,9 @@
     <param name="/use_sim_time" value="$(arg use_sim_time)"/>
 
     <param name="/num_robots" value="2"/>
+    <param name="/min_frontier_size" value="15"/>
+    <param name="/min_frontier_area" value="100"/>
+    
 
     <!-- Start the stdr simulation with the chosen map -->
     <include file="$(find launchers)/launch/server_with_map_and_gui.launch"/>
@@ -22,7 +25,7 @@
         <arg name="robot_id" value="robot1"/>
         <arg name="x" value="9"/>
         <arg name="y" value="7"/>
-        <arg name="theta" value="1.57"/>
+        <arg name="theta" value="-1.57"/>
     </include>
 
     <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>

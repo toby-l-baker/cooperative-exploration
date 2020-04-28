@@ -28,6 +28,7 @@ class ExplorerClient():
 
         self.num_robots = rospy.get_param('/num_robots')
         self.pubs_mb = []
+        self.time_since_goal = []
         for i in range(self.num_robots):
             goal_topic = 'robot{}/move_base_simple/goal'.format(i)
             result_topic = 'robot{}/move_base/result'.format(i)
@@ -41,8 +42,9 @@ class ExplorerClient():
             return 
         # TODO finalize any setup needed
         for i in range(self.num_robots):
-            print("Sent goal to robot{}".format(i))
+            # print("Sent goal to robot{}".format(i))
             self.request_publish_goal(i)
+            self.time_since_goal.append(rospy.get_time())
         print("Client Initialized")
         self.initialized = True
 
@@ -50,6 +52,12 @@ class ExplorerClient():
         if not self.initialized:
             # raise ExplorerError("ExplorerClient not initialized!")
             return 
+        now = rospy.get_time()
+        for i in range(self.num_robots):
+            # If we haven't had a goal for 10 secs get another one
+            if (now - self.time_since_goal[i]) > 15:
+                self.request_publish_goal(i)
+                self.time_since_goal[i] = rospy.get_time()
         # TODO execute main functionality here
 
     ###############################
@@ -64,10 +72,9 @@ class ExplorerClient():
             (trans,rot) = self.listener.lookupTransform('/map', '/robot{}'.format(robot_id), rospy.Time(0))
             goal = self.server.get_goal_pose(trans, rot)
             self.pubs_mb[robot_id].publish(goal)
-            print("told robot{} to go to\n{}".format(robot_id, (goal.pose.position.x, goal.pose.position.y)))
             return 1
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            print("DAMMIT")
+            print("DAMMIT CANNOT GET GOAL")
             return 0
         
     ###############################
@@ -78,5 +85,6 @@ class ExplorerClient():
         if msg.status.status == 3:
             # Move base has succeeded, send a new goal
             self.request_publish_goal(robot_id)
+            self.time_since_goal[robot_id] = rospy.get_time()
             
 

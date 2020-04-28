@@ -1,6 +1,7 @@
 from collections import deque
 import enum
 import numpy as np
+import rospy
 
 ###################
 # UTILITY FUNCTIONS
@@ -44,7 +45,7 @@ def map2world(point, map_info):
     return ret
 
 class Graph:
-    def __init__(self, point, msg): # map is the full ros message
+    def __init__(self, point, msg, min_area, min_size): # map is the full ros message
         # Setup map params
         self.info = msg.info
         # print(self.info)
@@ -56,9 +57,11 @@ class Graph:
         # Setup BFS params
         self.bfs = deque()
         self.head = point
-        self.min_frontier_size = 10
+        # Set to rosparam values in explorer server setup function
+        self.min_frontier_area = min_area # min number of cells unexplored cells in order to be considered a frontier
+        self.min_frontier_size = min_size  
     
-    def nearest_free_cell(self, start):
+    def nearest_cell(self, start, value=1):
         """
             The start point may not necessarily be free so we need to do a BFS to find the nearest point to that which is free
         """
@@ -75,10 +78,10 @@ class Graph:
             for p in self.children4(idx):
                 cell_type = self.get_cell_type(self.map[p[0], p[1]])
                 # if the cell is free then use it
-                if cell_type == 1:
+                if cell_type == value:
                     return p
                 # Check that the cell is not free and we haven't visited it before
-                elif (cell_type != 1) and not (explored_flags[p[0], p[1]]):
+                elif (cell_type != value) and not (explored_flags[p[0], p[1]]):
                     explored_flags[p[0], p[1]] = True
                     bfs.append(p)
         return "Nope"
@@ -112,11 +115,11 @@ class Graph:
         return candidates
 
     def search(self):
-        self.frontiers = [] # frontier cells continually changing so search everytime
+        frontiers = [] # frontier cells continually changing so search everytime
         self.explored_flags = np.zeros_like(self.map, dtype=bool)
         self.frontier_flags = np.zeros_like(self.map, dtype=bool)
         start = np.array(world2map(self.head, self.info), dtype=int)
-        start = self.nearest_free_cell(start)
+        start = self.nearest_cell(start)
         self.bfs.append(start) # may need to alter this to be the nearest free cell
         self.explored_flags[start[0], start[1]] = True
         # print("Starting Search at {}".format(start))
@@ -132,19 +135,54 @@ class Graph:
                     self.frontier_flags[p[0], p[1]] = True
                     new_frontier = self.buildNewFrontier(p)
                     if new_frontier.size > self.min_frontier_size:
-                        self.frontiers.append(new_frontier)
+                        frontiers.append(new_frontier)
                         # print("New Frontier Added: {}".format((new_frontier.centroid[0], new_frontier.centroid[1])))
         # print("Returning Frontier Locations")
+        self.frontiers = self.filter_frontiers(frontiers)
+
         return self.frontiers
                     
-    
+    def filter_frontiers(self, frontiers):
+        """
+        Takes in a list of frontiers and gets rid of the ones that have small unexplored areas, 
+        they are filtered accoring to self.min_area
+        Inputs:
+            frontiers: a list where each entry is of the Frontier class
+        Output:
+            frontier: a list of frontiers where each of the self.big_enough flag has been set if big enough
+        """
+
+
+        for i in range(len(frontiers)):
+            unexplored_cells = 0
+            checked_flags = np.zeros_like(self.map, dtype=bool)
+            bfs = deque()
+            centroid = np.array([frontiers[i].centroid[1], frontiers[i].centroid[0]])
+            start = np.array(world2map(centroid, self.info), dtype=int)
+            # start = np.array([int(start[1]), int(start[0])])
+            if self.get_cell_type(self.map[start[0], start[1]]) != 0:
+                self.nearest_cell(start, value=0) # 0 is unexplored
+            bfs.append(start)
+            while (bfs and (unexplored_cells < self.min_frontier_area)):
+                idx = bfs.popleft()
+                for p in self.children4(idx):
+                    # Check that the cell is free and we haven't visited it before
+                    cell_type = self.get_cell_type(self.map[p[0], p[1]])
+                    if (cell_type == 0) and not (checked_flags[p[0], p[1]]):
+                        checked_flags[p[0], p[1]] = True
+                        bfs.append(p)
+                        unexplored_cells += 1
+            if unexplored_cells >= self.min_frontier_area:
+                frontiers[i].big_enough = 1
+
+        return frontiers
+
     def buildNewFrontier(self, initial_cell):
         # Explore uses indexToCells and mapToWorld transforms could cause this to fail
         bfs_frontier = deque()
         bfs_frontier.append(initial_cell)
         initial_world = map2world(np.array([initial_cell[1], initial_cell[0]]), self.info)
         output = Frontier(initial_world)
-
         while bfs_frontier: # loop til the queue is empty
             idx = bfs_frontier.popleft()
             for p in self.children8(idx):
@@ -154,8 +192,8 @@ class Graph:
                     output.points.append(wp)
                     output.size += 1
                     output.centroid += wp
-
                     bfs_frontier.append(p)
+        
         output.points = np.array(output.points)
         output.centroid /= output.size
         return output
@@ -180,3 +218,4 @@ class Frontier:
         self.centroid = np.ones(2)*point
         self.size = 1
         self.points = [self.initial]
+        self.big_enough = 0

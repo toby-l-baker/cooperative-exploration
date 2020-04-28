@@ -31,6 +31,8 @@ class MapListener():
         # Initial search params 
         self.initial_x = None
         self.initial_y = None
+        self.min_frontier_area = None
+        self.min_frontier_size = None
 
         # variable to store all frontiers
         self.frontiers = None
@@ -59,7 +61,9 @@ class MapListener():
 
         if (self.occupancy_grid is not None) and (self.initial_x is not None) and (self.initial_y is not None):
             initial = np.array([self.initial_x, self.initial_y])
-            self.graph = Graph(initial, self.occupancy_grid)
+            min_area = rospy.get_param('/min_frontier_area')
+            min_size = rospy.get_param('/min_frontier_size')
+            self.graph = Graph(initial, self.occupancy_grid, min_area, min_size)
             self.initialized = True
         
         return 
@@ -86,14 +90,18 @@ class MapListener():
 
             # For saving frontier points
             # np.savetxt('/home/toby/Documents/berkeley/robotics/cooperative-exploration/catkin_ws/src/explorer/src/front_test/front{}.txt'.format(i), front.points)
-            
+            col = None
+            if front.big_enough == 1:
+                col = ColorRGBA(r=1,a=1)
+            else:
+                col = ColorRGBA(b=1,a=1)
             marker = Marker(header=Header(stamp=rospy.Time.now(),
                                           frame_id="map"),
                                           id=i,
                                           type=2,
                                           pose=marker_pose,
                                           scale=Vector3(x=size,y=size,z=size),
-                                          color=ColorRGBA(r=1,a=1))
+                                          color=col)
             output.append(marker)
         self.pub.publish(MarkerArray(markers=output))
 
