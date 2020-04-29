@@ -1,0 +1,7 @@
+<launch>
+
+    <node name="explorer_server" pkg="explorer" type="explorer_server_node.py">
+
+    </node>
+
+</launch>
