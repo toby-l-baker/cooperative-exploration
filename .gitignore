@@ -6,3 +6,4 @@ catkin_ws/src/m-explore/
 catkin_ws/frames*
 frames*
 catkin_ws/src/explorer/src/explorer/*.pyc
+*.swp
