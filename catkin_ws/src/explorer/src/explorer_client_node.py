@@ -6,11 +6,13 @@ from explorer import ExplorerClient
 def main():
     rospy.init_node("explorer_client")
 
-    ec = ExplorerClient()
+    robot_id = rospy.get_param("~robot_id")
+
+    ec = ExplorerClient(robot_id)
     ec.server.setup()
     ec.setup()
 
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(20)
     while not rospy.is_shutdown():
         ec.loop()
         rate.sleep()
