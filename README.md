@@ -59,3 +59,11 @@ Energy Efficient, Collaborative Robot Exploration
 2. Install [explore\_lite](http://mirror-eu.wiki.ros.org/explore_lite.html?distro=kinetic)
 2. Install [move\_base](http://wiki.ros.org/move_base)
 2. Install [gmapping](http://wiki.ros.org/gmapping)
+
+## Launching our explorers
+
+```bash
+$ roslaunch launchers multi-sim-mapping # move base, gmapping, two robots and rviz
+$ rosrun explorer explorer_server_node.py # shows the frontiers, but does not of the functionality
+$ rosrun explorer explorer_client_node.py # Runs the clients with the server to go out and explore the map
+```
