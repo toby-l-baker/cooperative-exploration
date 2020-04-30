@@ -30,7 +30,7 @@ class ExplorerServer():
 
         print("[DEBUG] Explorer Server's MapListener is initialized")
 
-        # TODO: NEED TO GET ROBOT SENSING RADIUS
+        # TODO: NEED TO GET ROBOT SENSING RADIUS FROM PARAMETER SERVER
         self.sensing_radius = 4.09000015258789
 
         self.pub1 = rospy.Publisher('/robot0/target', PoseStamped, queue_size=10)
@@ -61,6 +61,9 @@ class ExplorerServer():
     ###############################
 
     def test_selection(self):
+        """
+        This function is for debugging the frontier selection process by visualizing where the targets would be for two robots
+        """
         try:
             (trans,rot) = self.listener.lookupTransform('/map', '/robot0', rospy.Time(0))
             euler = tf.transformations.euler_from_quaternion(rot)
@@ -85,13 +88,11 @@ class ExplorerServer():
     
     def get_goal_pose(self, trans, rot):
         """
-        Takes in the robots pose and returns the next goal pose
-        robot_pose: 
-                Type: geometry_msgs.msg Pose
-                What?: The current pose of the robot in world co-ordinates
-        robot_id 
-                Type: int, eg 0 for robot0
-        Returns: geometry_msgs.msg PoseStamped
+        Inputs:
+            trans: a three tuple returned from tf listener of the robots x, y, z coordinates
+            rot: a quad tuple containing the quaternion of the robots pose
+
+        Returns: geometry_msgs.msg PoseStamped of where the robot should go
         """
         euler = tf.transformations.euler_from_quaternion(rot)
         # Get the frontier info 
@@ -126,22 +127,22 @@ class ExplorerServer():
         outside = []
 
         #1. Get information about the robots position
-        r = from_position(robot_pose.position)
-        R = tf.transformations.quaternion_matrix(from_quaternion(robot_pose.orientation))
-        R[0:3, 3] = r 
+        r = from_position(robot_pose.position) # get the robots position as a numpy array
+        R = tf.transformations.quaternion_matrix(from_quaternion(robot_pose.orientation)) # get the rotation matrix representing the robot's base frame (a 4x4 homogeneous representation)
+        R[0:3, 3] = r # set p of homogeneous transform
         R_inv = inverse_homog(R)
         # print("R:\n {}\nR_inv:\n {}".format(R, R_inv))
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
             frontier_store = {}
-            front_homog = np.hstack((frontier.centroid, np.array([0, 1])))
-            p = R_inv.dot(front_homog)
-            dist = np.sqrt(p[0]**2 + p[1]**2)
+            front_homog = np.hstack((frontier.centroid, np.array([0, 1]))) # convert frontier location to a homogeneous representation
+            p = R_inv.dot(front_homog) 
+            dist = np.sqrt(p[0]**2 + p[1]**2) 
             angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
-            if angle < 0:
+            if angle < 0: # shift from [-pi, pi] to [0, 2pi]
                 angle = angle + 2*np.pi
-            frontier_store["angle"] = angle
+            frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if dist <= self.sensing_radius and frontier.big_enough:
