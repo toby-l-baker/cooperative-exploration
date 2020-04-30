@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import rospy
-from explorer import ExplorerServer
+from pyexplorer import ExplorerServer
 
 def main():
     rospy.init_node("explorer_server")

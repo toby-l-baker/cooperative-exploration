@@ -58,6 +58,8 @@ class MapListener():
         if self.initialized:
             return
         # TODO additional setup here based on map data
+        self.initial_x = rospy.get_param('/robot1/init_pose_x')
+        self.initial_y = rospy.get_param('/robot1/init_pose_y')
 
         if (self.occupancy_grid is not None) and (self.initial_x is not None) and (self.initial_y is not None):
             initial = np.array([self.initial_x, self.initial_y])

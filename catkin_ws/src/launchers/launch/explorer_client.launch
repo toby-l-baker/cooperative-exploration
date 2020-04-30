@@ -1,7 +1,7 @@
 <launch>
     <arg name="robot_id"/>
 
-    <node name="explorer_client_$(arg robot_id)" pkg="explorer" type="explorer_client_node.py" respawn="true">
+    <node name="explorer_client_$(arg robot_id)" pkg="explorer" type="explorer_client_node.py" respawn="true" output="screen">
         <param name="robot_id" value="$(arg robot_id)"/>
     </node>
 

@@ -9,8 +9,9 @@
 import tf
 import rospy
 import explorer_server
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Point, Quaternion
 from move_base_msgs.msg import MoveBaseActionResult
+from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest
 
 class ExplorerClient():
     """
@@ -32,9 +33,9 @@ class ExplorerClient():
                                           PoseStamped, queue_size=10)
         rospy.Subscriber("{}/move_base/result".format(robot_id), MoveBaseActionResult, self.move_base_result_cb)
 
-        self.server = explorer_server.ExplorerServer() # just for testing
+        rospy.wait_for_service('/explorer_target')
+        self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
 
-        
     def setup(self):
         if self.initialized:
             return 
@@ -64,11 +65,19 @@ class ExplorerClient():
         """
         try:
             (trans,rot) = self.listener.lookupTransform('/map', '/{}'.format(self.robot_id), rospy.Time(0))
-            self.goal = self.server.get_goal_pose(trans, rot)
+            request = ExplorerTargetServiceRequest()
+            request.request_type = ExplorerTargetServiceRequest.GET_TARGET
+            request.robot_id = self.robot_id
+            request.robot_pose = PoseStamped()
+            request.robot_pose.header.frame_id = "/map"
+            request.robot_pose.pose.position = Point(trans[0], trans[1], trans[2])
+            request.robot_pose.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
+            self.response = self.service_proxy(request)
+            self.goal = self.response.target_position
             self.move_base.publish(self.goal)
             return 1
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            print("DAMMIT CANNOT GET GOAL")
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+            print("DAMMIT CANNOT GET GOAL: {}".format(e))
             return 0
         
     ###############################

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import rospy
-from explorer import ExplorerClient
+from pyexplorer import ExplorerClient
 
 def main():
     rospy.init_node("explorer_client")
@@ -9,7 +9,6 @@ def main():
     robot_id = rospy.get_param("~robot_id")
 
     ec = ExplorerClient(robot_id)
-    ec.server.setup()
     ec.setup()
 
     rate = rospy.Rate(20)
