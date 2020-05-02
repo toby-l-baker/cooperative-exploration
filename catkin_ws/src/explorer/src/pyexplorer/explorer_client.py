@@ -83,7 +83,7 @@ class ExplorerClient():
         Function should be invoked once on setup and also every time we reach our goal move_
         """
         try:
-            (trans,rot) = self.listener.lookupTransform('/map', '/robot{}'.format(0), rospy.Time(0))
+            (trans,rot) = self.listener.lookupTransform('/map', '/{}'.format(self.robot_id), rospy.Time(0))
             # (trans,rot) = self.t.lookupTransform("/map", "{}".format(self.robot_id), rospy.Time(0))
             request = ExplorerTargetServiceRequest()
             request.request_type = request_type
