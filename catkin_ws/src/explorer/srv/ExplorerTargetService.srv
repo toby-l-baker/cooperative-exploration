@@ -2,10 +2,12 @@
 int8 request_type
 string robot_id
 geometry_msgs/PoseStamped robot_pose
+geometry_msgs/PoseStamped previous_goal
 
 # request_type constants
 int8 DEBUG=-1
-int8 GET_TARGET=0
+int8 GET_TARGET=0 # Successfully reached the goal and need a new goal
+int8 BLACKLIST=1 # Failed to reach goal, need to blacklist the previous goal and get a new one
 ---
 # Response message format
 int8 status_code

@@ -10,7 +10,7 @@ import numpy as np
 import tf
 from geometry_msgs.msg import PoseStamped, Pose
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest, ExplorerTargetServiceResponse
-from utils import *
+from utils import get_pose_stamped_from_tf, get_pose_from_tf, get_target_yaw, inverse_homog, from_quaternion, from_position
 
 class ExplorerServer():
     """
@@ -33,10 +33,15 @@ class ExplorerServer():
         # TODO: NEED TO GET ROBOT SENSING RADIUS FROM PARAMETER SERVER
         self.sensing_radius = 4.09000015258789
 
-        self.pub1 = rospy.Publisher('/robot0/target', PoseStamped, queue_size=10)
-        self.pub2 = rospy.Publisher('/robot1/target', PoseStamped, queue_size=10)
+        self.debug_pubs = []
+        self.n_robots = 2
+        for i in range(self.n_robots):
+            self.debug_pubs.append(rospy.Publisher('/robot{}/target'.format(i), PoseStamped, queue_size=10))
 
         self.listener = tf.TransformListener()
+        
+        self.blacklist = [] # a blacklist of frontiers to ignore since one of the robots couldn't get there
+        self.blacklist_thresh = 0.2 # how close to a blacklisted position you need to be to actually be blacklisted
         
         rospy.Service("explorer_target", ExplorerTargetService, self.service_callback)
 
@@ -53,7 +58,7 @@ class ExplorerServer():
     def loop(self):
         if not self.initialized:
             return
-        #self.test_selection()
+        self.test_selection()
         return
 
     ###############################
@@ -62,29 +67,21 @@ class ExplorerServer():
 
     def test_selection(self):
         """
-        This function is for debugging the frontier selection process by visualizing where the targets would be for two robots
+        This function is for debugging the frontier selection process by visualizing where the targets would be for two robots without
+        ever setting the goal positions
         """
-        try:
-            (trans,rot) = self.listener.lookupTransform('/map', '/robot0', rospy.Time(0))
-            euler = tf.transformations.euler_from_quaternion(rot)
-            front = self.select_frontier(get_pose_from_tf(trans, rot))
-            target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
-            target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
-            target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
-            self.pub1.publish(target_pose)
+        for i in range(self.n_robots):
+            try:
+                (trans,rot) = self.listener.lookupTransform('/map', '/robot{}'.format(i), rospy.Time(0))
+                euler = tf.transformations.euler_from_quaternion(rot)
+                front = self.select_frontier(get_pose_from_tf(trans, rot))
+                target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
+                target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
+                target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
+                self.debug_pubs[i].publish(target_pose)
 
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            pass
-        try:
-            (trans,rot) = self.listener.lookupTransform('/map', '/robot1', rospy.Time(0))
-            euler = tf.transformations.euler_from_quaternion(rot)
-            front = self.select_frontier(get_pose_from_tf(trans, rot))
-            target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
-            target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
-            target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
-            self.pub2.publish(target_pose)
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-            pass
+            except Exception as e:
+                print("Server cannot execute map transform: {}".format(e))
     
     def get_goal_pose(self, trans, rot):
         """
@@ -112,14 +109,14 @@ class ExplorerServer():
             robot_pose: 
                 Type: geometry_msgs.msg Pose
                 What?: The current pose of the robot in world co-ordinates
-            frontier_list:
-                Type: list of type Frontier (in frontier_search.py)
-                What?: A list of all current frontiers in the map
         Outputs:
-            goal: 
-                Type: geometry_msgs.msg Pose
-                What?: the location of the frontier where the direction is the direction of the vector
-                    connecting the robot to the frontier.
+            target: 
+                Type: a dictionary containing frontier information
+                Keys["dist", "angle", "location", "blacklist"]: 
+                    distance from the robot to the frontier, 
+                    ccw angle from robot y axis to point, 
+                    x, y coords of the point,
+                    if the frontier is blacklisted (i.e. dont use it)
         """
         frontier_list=self.map_listener.frontiers
 
@@ -144,12 +141,15 @@ class ExplorerServer():
                 angle = angle + 2*np.pi
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
+            frontier_store["blacklist"] = 0
+            for x, y in self.blacklist:
+                if np.sqrt((frontier.centroid[0]-x)**2 + (frontier.centroid[1]-y)**2) < self.blacklist_thresh:
+                    frontier_store["blacklist"] = 1
+                    break
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if dist <= self.sensing_radius and frontier.big_enough:
-                # print("Point is Within\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 within.append(frontier_store)
             elif frontier.big_enough:
-                # print("Point is Outside\nWorld Front: {}\n Local Front: {}\nAngle: {}".format(front_homog, p, angle))
                 outside.append(frontier_store)
 
         #4. If the 'within' frontiers is not empty then pick the one with the smallest theta (start at 0 to the left of the robot)
@@ -157,7 +157,7 @@ class ExplorerServer():
         best_angle = 2*np.pi
         if len(within) > 0:
             for front in within:
-                if front["angle"] < best_angle:
+                if (front["angle"] < best_angle) and not (front["blacklist"]):
                     target = front
                     best_angle = front["angle"]
             return target
@@ -165,7 +165,7 @@ class ExplorerServer():
         #5. If there are no frontiers near the robot then repeat (3) for the frontiers outside the sensing radius
         elif len(outside) > 0:
             for front in outside:
-                if front["angle"] < best_angle:
+                if (front["angle"] < best_angle) and not (front["blacklist"]):
                     target = front
                     best_angle = front["angle"]
             return target
@@ -185,6 +185,7 @@ class ExplorerServer():
         robot_pose = request.robot_pose
         response = ExplorerTargetServiceResponse()
         response.robot_id = robot_id
+        previous_goal = request.previous_goal
 
         if request_type == ExplorerTargetServiceRequest.DEBUG:
             print("[DEBUG] Request arrived from {}".format(robot_id))
@@ -197,6 +198,21 @@ class ExplorerServer():
                 rot = [rot.x, rot.y, rot.z, rot.w]
                 response.target_position = self.get_goal_pose(trans, rot)
                 response.status_code = ExplorerTargetServiceResponse.SUCCESS
+                print("[DEBUG] GET_TARGET Request arrived from {}".format(robot_id))
+            except Exception as e:
+                print("Exception occurred: {}".format(e))
+                response.status_code = ExplorerTargetServiceResponse.FAILURE
+        if request_type == ExplorerTargetServiceRequest.BLACKLIST:
+            try:
+                trans = robot_pose.pose.position
+                trans = [trans.x, trans.y, trans.z]
+                rot = robot_pose.pose.orientation
+                rot = [rot.x, rot.y, rot.z, rot.w]
+                to_blacklist = [previous_goal.pose.position.x, previous_goal.pose.position.y]
+                self.blacklist.append(to_blacklist)
+                response.target_position = self.get_goal_pose(trans, rot)
+                response.status_code = ExplorerTargetServiceResponse.SUCCESS
+                print("[DEBUG] BLACKLIST Request arrived from {}".format(robot_id))
             except Exception as e:
                 print("Exception occurred: {}".format(e))
                 response.status_code = ExplorerTargetServiceResponse.FAILURE

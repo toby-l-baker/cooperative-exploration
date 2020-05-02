@@ -1,6 +1,7 @@
 <launch>
     <arg name="use_sim_time" default="false"/>
     <arg name="robot_file" default="pandora_robot"/>
+    <arg name="use_rviz" default="true"/>
 
     <param name="/use_sim_time" value="$(arg use_sim_time)"/>
 
@@ -27,8 +28,10 @@
         <arg name="y" value="7"/>
         <arg name="theta" value="-1.57"/>
     </include>
-
-    <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>
+    
+    <group if="$(arg use_rviz)">
+        <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>
+    </group>
 
     <node pkg="multirobot_map_merge" type="map_merge" respawn="false" name="map_merge" output="screen">
         <param name="robot_map_topic" value="map"/>
