@@ -7,11 +7,6 @@ Energy Efficient, Collaborative Robot Exploration
    1. ExplorerClient indicates it needs a target
    2. ExplorerServer uses its known list of frontiers and robot location to decide waypoint
    3. ExplorerClient takes job and travels to waypoint
-2. Integrate map merging package
-   1. Each robot's gmapping system should create their own map (/robot0/map, /robot0/map\_metadata)
-   2. The multirobot\_map\_merge package should combine the maps and publish a uniform map to /map
-   3. Each robot's move\_base node can listen to the global /map topic to understand where they are
-3. Implement a node to measure what % of the map has been mapped over time
 
 ### Tarkan
 
@@ -46,9 +41,14 @@ Energy Efficient, Collaborative Robot Exploration
 1. Frontier ID debugging
 1. Juggle around map listener interface so it is portable
 1. Create Explorer Server Functionality
+2. Integrate map merging package
+   1. Each robot's gmapping system should create their own map (/robot0/map, /robot0/map\_metadata)
+   2. The multirobot\_map\_merge package should combine the maps and publish a uniform map to /map
+   3. Each robot's move\_base node can listen to the global /map topic to understand where they are
+1. Simplify explorer cient loop so it is easily expandable
 
 ### Planned
-
+3. Implement a node to measure what % of the map has been mapped over time (for evaluation)
 
 
 ## Install Instructions
