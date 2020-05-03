@@ -107,6 +107,8 @@ class ExplorerServer():
     
     def get_goal_pose(self, trans, rot):
         """
+        Description: uses select frontier to find the x, y location off the frontier to go to and constructs a PoseStamped
+                    message to be sent to move_base
         Inputs:
             trans: a three tuple returned from tf listener of the robots x, y, z coordinates
             rot: a quad tuple containing the quaternion of the robots pose
@@ -125,7 +127,8 @@ class ExplorerServer():
 
     def select_frontier(self, robot_pose):
         """
-        Function to be called when the each robot requests a new goal
+        Function to be called when the each robot requests a new goal, it finds the location of each frontier in the robots coordinate 
+        frame and then picks the best frontier according to the method outlined in the energy efficient exploration paper
 
         Inputs:
             robot_pose: 
@@ -134,11 +137,10 @@ class ExplorerServer():
         Outputs:
             target: 
                 Type: a dictionary containing frontier information
-                Keys["dist", "angle", "location", "blacklist"]: 
+                Keys["dist", "angle", "location"]: 
                     distance from the robot to the frontier, 
                     ccw angle from robot y axis to point, 
                     x, y coords of the point,
-                    if the frontier is blacklisted (i.e. dont use it)
         """
         frontier_list=self.map_listener.frontiers
 
@@ -150,12 +152,12 @@ class ExplorerServer():
         R = tf.transformations.quaternion_matrix(from_quaternion(robot_pose.orientation)) # get the rotation matrix representing the robot's base frame (a 4x4 homogeneous representation)
         R[0:3, 3] = r # set p of homogeneous transform
         R_inv = inverse_homog(R)
-        # print("R:\n {}\nR_inv:\n {}".format(R, R_inv))
+
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
             frontier_store = {}
             front_homog = np.hstack((frontier.centroid, np.array([0, 1]))) # convert frontier location to a homogeneous representation
-            p = R_inv.dot(front_homog) 
+            p = R_inv.dot(front_homog) # frontier location in local coordinates
             dist = np.sqrt(p[0]**2 + p[1]**2) 
             angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
@@ -186,6 +188,7 @@ class ExplorerServer():
                     target = front
                     best_angle = front["angle"]
             return target
+        
         # Code broken or no frontiers :'(
         else:
             return -1
