@@ -1,7 +1,7 @@
 <launch>
     <arg name="use_sim_time" default="false"/>
     <arg name="robot_file" default="pandora_robot"/>
-    <arg name="use_rviz" default="true"/>
+    <arg name="use_gui" default="true"/>
 
     <param name="/use_sim_time" value="$(arg use_sim_time)"/>
 
@@ -11,7 +11,9 @@
     
 
     <!-- Start the stdr simulation with the chosen map -->
-    <include file="$(find launchers)/launch/server_with_map_and_gui.launch"/>
+    <include file="$(find launchers)/launch/server_with_map_and_gui.launch">
+        <arg name="use_gui" value="$(arg use_gui)"/>
+    </include>
 
     <!-- Add the robot0 to the simulation -->
     <include file="$(find launchers)/launch/launch_robot.launch">
@@ -29,7 +31,7 @@
         <arg name="theta" value="-1.57"/>
     </include>
     
-    <group if="$(arg use_rviz)">
+    <group if="$(arg use_gui)">
         <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>
     </group>
 
@@ -39,8 +41,12 @@
         <param name="merged_map_topic" value="/map"/>
         <param name="world_frame" value="map_merge"/>
         <param name="known_init_poses" value="true"/>
-        <param name="merging_rate" value="0.5"/>
-        <param name="discovery_rate" value="0.05"/>
+        <!-- Rate in Hz. Basic frequency on which this node discovers merges robots maps and publish merged map. 
+        Increase this value if you want faster updates. -->
+        <param name="merging_rate" value="0.25"/>
+        <!-- Rate in Hz. Frequency on which this node discovers new robots. 
+        Increase this value if you need more agile behaviour when adding new robots. Robots will be discovered sooner. -->
+        <param name="discovery_rate" value="0.01"/>
         <param name="estimation_rate" value="0.1"/>
         <param name="estimation_confidence" value="1.0"/>
     </node>
