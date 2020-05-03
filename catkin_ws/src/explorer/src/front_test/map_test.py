@@ -2,11 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from collections import deque
+import argparse as ap
 
-
-plt.figure(1)
+parser = ap.ArgumentParser()
+parser.add_argument('map_file', type=str)
+parser.add_argument('--plot_frontiers', action='store_true')
+parser.add_argument('--plot_nearest', action='store_true')
+args = parser.parse_args()
 
 def get_cell_type(value):
+    """
+    Takes in a value and returns the cell type
+    0: unexplored
+    1: free space
+    2: occupied
+    """ 
     if value == -1:
         return 0
     elif value < 50:
@@ -15,6 +25,9 @@ def get_cell_type(value):
         return 2
 
 def children4(point):
+    """
+    returns the four neighbourhood surrounding a point in an occupancy grid
+    """
     x, y = point.copy()
     candidates = np.array([[x+1, y],
                             [x-1, y],
@@ -102,13 +115,14 @@ def nearest_cell(start, width, height, data, value=1):
                 bfs.append(p)
     return "FUCK I COULDN'T FIND SHIT"
 
-data = np.loadtxt("map.txt")
+# Load and setup our map for plotting
+data = np.loadtxt(args.map_file)
 occupied = []
 free = []
 unexplored = []
 rows, cols = data.shape
 
-# Generate a map for viewing in matplotlib
+# Generate a map for viewing in matplotlib by collating cell types
 for i in range(rows):
     for j in range(cols):
         if data[i, j] == -1:
@@ -119,41 +133,51 @@ for i in range(rows):
         else:
             occupied.append([i, j])
 
-fronts = []
-searched_points = []
-for i in range(8):
-    front = np.loadtxt("front{}.txt".format(i))
-    fronts.append(front)
-    searched_points.append(filter_frontiers(front, data))
-
-fronts = np.array(fronts)
-searched_points = np.array(searched_points)
 occupied = np.array(occupied)
 free = np.array(free)
 unexplored = np.array(unexplored)
 
-search_initial = np.array([300, 370])
+search_initial = np.array([450, 350])
 nearest_cell = nearest_cell(search_initial, data.shape[0], data.shape[1], data)
 
+plt.figure(1)
+
+# Plot the map with Matplotlib
 plt.scatter(unexplored[:, 1], unexplored[:, 0], s=1, marker='x')
 plt.scatter(free[:, 1], free[:, 0], s=2, marker='o')
 plt.scatter(occupied[:, 1], occupied[:, 0], s=2)
 
-
+# Setup different colour for plotting frontiers
 x = np.arange(10)
 ys = [i+x+(i*x)**2 for i in range(10)]
 colors = cm.rainbow(np.linspace(0, 1, len(ys)))
 
-for i, points in enumerate(searched_points):
-    front = fronts[i]
-    front = np.array([world2map(p) for p in front])
-    color = colors[i % 10]
-    plt.scatter(points[:, 1], points[:, 0], c=color.reshape(1, 4))
-    plt.scatter(front[:, 0], front[:, 1], c=color.reshape(1, 4))
-    centroid = np.array([np.sum(front[:, 0]), np.sum(front[:, 1])]) / len(front)
-    plt.scatter(centroid[0], centroid[1], c='red')
+"""
+Plotting Frontiers
+"""
+if args.plot_frontiers:
+    fronts = []
+    searched_points = []
+    for i in range(8):
+        front = np.loadtxt("front{}.txt".format(i))
+        fronts.append(front)
+        searched_points.append(filter_frontiers(front, data))
 
-# plt.scatter(search_initial[0], search_initial[1], marker='x')
-# plt.scatter(nearest_cell[0], nearest_cell[1], marker='x')
+    fronts = np.array(fronts)
+    searched_points = np.array(searched_points)
+
+    for i, points in enumerate(searched_points):
+        front = fronts[i]
+        front = np.array([world2map(p) for p in front])
+        color = colors[i % 10]
+        plt.scatter(points[:, 1], points[:, 0], c=color.reshape(1, 4))
+        plt.scatter(front[:, 0], front[:, 1], c=color.reshape(1, 4))
+        centroid = np.array([np.sum(front[:, 0]), np.sum(front[:, 1])]) / len(front)
+        plt.scatter(centroid[0], centroid[1], c='red')
+
+if args.plot_nearest:
+    plt.scatter(search_initial[0], search_initial[1], marker='x')
+    plt.scatter(nearest_cell[0], nearest_cell[1], marker='x')
+
 plt.grid()
-plt.show()
+plt.savefig(args.map_file[:-4]+'_{}_{}.png'.format(int(args.plot_frontiers), int(args.plot_nearest)))
