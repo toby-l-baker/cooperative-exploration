@@ -41,6 +41,7 @@ class ExplorerClient():
         self.move_base = rospy.Publisher("{}/move_base_simple/goal".format(robot_id),
                                           PoseStamped, queue_size=10)
         rospy.Subscriber("{}/move_base/result".format(robot_id), MoveBaseActionResult, self.move_base_result_cb)
+        rospy.Subscriber("{}/move_base_simple/goal".format(robot_id), PoseStamped, self.move_base_goal_cb)
 
         rospy.wait_for_service('/explorer_target')
         self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
@@ -67,10 +68,13 @@ class ExplorerClient():
             # could do DEBUG things here if wanted/needed and use time since goal if needed
             pass
         elif self.status["mb_failure"]:
+            print("[DEBUG] move_base failed, performing BLACKLIST request")
             self.request_publish_goal(ExplorerTargetServiceRequest.BLACKLIST)
         elif self.status["target_reached"]:
+            print("[DEBUG] move_base succeeded, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
         elif not self.status["have_a_goal"]: # happens if our initial goal request fails
+            print("[DEBUG] I do not have a goal, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
         
 
@@ -96,13 +100,10 @@ class ExplorerClient():
             self.response = self.service_proxy(request)
             self.goal = self.response.target_position
             self.move_base.publish(self.goal)
-            # when we get a new goal reset all of the status flags
-            self.status["have_a_goal"] = 1
-            self.status["target_reached"] = 0
-            self.status["mb_failure"] = 0
+            # when we get a new goal reset all of the status flags - done in move_base_simple/goal callback
             return 1
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
-            print("DAMMIT CANNOT GET GOAL: {}".format(e))
+            print("[DEBUG] Exception occured while requesting new goal: {}".format(e))
             return 0
         
     ###############################
@@ -123,3 +124,12 @@ class ExplorerClient():
             self.status["target_reached"] = 0
             self.status["have_a_goal"] = 0
             self.status["mb_failure"] = 1
+    
+    def move_base_goal_cb(self, msg):
+        """
+        To make sure that have a goal only gets called once we publish to move_base_simple/goal
+        """
+        self.status["have_a_goal"] = 1
+        self.status["target_reached"] = 0
+        self.status["mb_failure"] = 0
+        print("[DEBUG] published to move_base_simple/goal successfully")

@@ -1,5 +1,5 @@
 <launch>
-
+    <arg name="use_gui" default="true"/>
     <arg name="map_file" default="$(find stdr_resources)/maps/sparse_obstacles.yaml"/>
 
     <node pkg="nodelet" type="nodelet" name="robot_manager" args="manager">
@@ -19,8 +19,10 @@
 
     <node pkg="tf" type="static_transform_publisher" name="world2map_merge" args="6 6 0 0 0 0  world map_merge 100" />
 
-    <node name="$(anon stdr_gui_node)" pkg="stdr_gui" type="stdr_gui_node">
-        <remap from="map" to="stdr/map"/>
-    </node>
+    <group if="$(arg use_gui)">    
+        <node name="$(anon stdr_gui_node)" pkg="stdr_gui" type="stdr_gui_node">
+            <remap from="map" to="stdr/map"/>
+        </node>
+    </group>
 
 </launch>
