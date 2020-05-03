@@ -12,6 +12,28 @@ from geometry_msgs.msg import PoseStamped, Pose
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest, ExplorerTargetServiceResponse
 from utils import get_pose_stamped_from_tf, get_pose_from_tf, get_target_yaw, inverse_homog, from_quaternion, from_position
 
+class RobotRecord():
+    """
+    RobotRecord
+
+    Class to organize data related to a robot
+
+    Attributes:
+    robot_id -- the name of the robot - string
+    pose -- the last known location of the robot - PoseStamped
+    goal -- the robot's current goal - PoseStamped
+    """
+    def __init__(self, explorer_request=None):
+        """
+        Initialize the robot record with an optional explorer request message
+        """
+        self.robot_id = None
+        self.pose = None
+        self.goal = None
+        if explorer_request is not None:
+            self.robot_id = explorer_request.robot_id
+            self.pose = explorer_request.robot_pose
+
 class ExplorerServer():
     """
     ExplorerServer
@@ -24,6 +46,7 @@ class ExplorerServer():
         self.initialized = False
         # Get ros parameters and construct objects here
         self.map_listener = map_listener.MapListener()
+        self.robot_info = {}
 
         while not self.map_listener.is_initialized():
             rospy.sleep(0.5)
@@ -187,6 +210,11 @@ class ExplorerServer():
         response.robot_id = robot_id
         previous_goal = request.previous_goal
 
+        # Store robot position with robot info
+        if self.robot_info.get(robot_id, None) is None:
+            self.robot_info[robot_id] = RobotRecord(request)
+        self.robot_info[robot_id].pose = robot_pose
+
         if request_type == ExplorerTargetServiceRequest.DEBUG:
             print("[DEBUG] Request arrived from {}".format(robot_id))
             response.status_code = ExplorerTargetServiceResponse.SUCCESS
@@ -216,5 +244,8 @@ class ExplorerServer():
             except Exception as e:
                 print("Exception occurred: {}".format(e))
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
+
+        # Store new goal with robot info
+        self.robot_info[robot_id].goal = response.target_position
 
         return response
