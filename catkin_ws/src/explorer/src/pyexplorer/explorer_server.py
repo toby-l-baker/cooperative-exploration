@@ -39,10 +39,7 @@ class ExplorerServer():
             self.debug_pubs.append(rospy.Publisher('/robot{}/target'.format(i), PoseStamped, queue_size=10))
 
         self.listener = tf.TransformListener()
-        
-        self.blacklist = [] # a blacklist of frontiers to ignore since one of the robots couldn't get there
-        self.blacklist_thresh = 0.2 # how close to a blacklisted position you need to be to actually be blacklisted
-        
+                
         rospy.Service("explorer_target", ExplorerTargetService, self.service_callback)
 
 
@@ -58,7 +55,7 @@ class ExplorerServer():
     def loop(self):
         if not self.initialized:
             return
-        self.test_selection()
+        # self.test_selection()
         return
 
     ###############################
@@ -75,6 +72,8 @@ class ExplorerServer():
                 (trans,rot) = self.listener.lookupTransform('/map', '/robot{}'.format(i), rospy.Time(0))
                 euler = tf.transformations.euler_from_quaternion(rot)
                 front = self.select_frontier(get_pose_from_tf(trans, rot))
+                if front == -1:
+                    return
                 target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
                 target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
                 target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
@@ -141,11 +140,6 @@ class ExplorerServer():
                 angle = angle + 2*np.pi
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
-            frontier_store["blacklist"] = 0
-            for x, y in self.blacklist:
-                if np.sqrt((frontier.centroid[0]-x)**2 + (frontier.centroid[1]-y)**2) < self.blacklist_thresh:
-                    frontier_store["blacklist"] = 1
-                    break
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if dist <= self.sensing_radius and frontier.big_enough:
                 within.append(frontier_store)
@@ -157,7 +151,7 @@ class ExplorerServer():
         best_angle = 2*np.pi
         if len(within) > 0:
             for front in within:
-                if (front["angle"] < best_angle) and not (front["blacklist"]):
+                if (front["angle"] < best_angle):
                     target = front
                     best_angle = front["angle"]
             return target
@@ -165,13 +159,13 @@ class ExplorerServer():
         #5. If there are no frontiers near the robot then repeat (3) for the frontiers outside the sensing radius
         elif len(outside) > 0:
             for front in outside:
-                if (front["angle"] < best_angle) and not (front["blacklist"]):
+                if (front["angle"] < best_angle):
                     target = front
                     best_angle = front["angle"]
             return target
         # Code broken or no frontiers :'(
         else:
-            return "No Frontier Found"
+            return -1
 
 
     ###############################
@@ -209,7 +203,7 @@ class ExplorerServer():
                 rot = robot_pose.pose.orientation
                 rot = [rot.x, rot.y, rot.z, rot.w]
                 to_blacklist = [previous_goal.pose.position.x, previous_goal.pose.position.y]
-                self.blacklist.append(to_blacklist)
+                self.map_listener.blacklist.append(to_blacklist)
                 response.target_position = self.get_goal_pose(trans, rot)
                 response.status_code = ExplorerTargetServiceResponse.SUCCESS
                 print("[DEBUG] BLACKLIST Request arrived from {}".format(robot_id))
