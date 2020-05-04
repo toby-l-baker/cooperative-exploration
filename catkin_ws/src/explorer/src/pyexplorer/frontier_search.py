@@ -168,7 +168,7 @@ class Graph:
         frontiers = [] # frontier cells continually changing so search everytime
         self.frontier_flags.fill(False)
         self.leaf_node_array.fill(False)
-        # self.explored_flags = np.zeros_like(self.map, dtype=bool)
+        self.explored_flags = np.zeros_like(self.map, dtype=bool)
 
         # if len(self.leaf_nodes) == 0:
         start = np.array(world2map(self.head, self.map_origin, self.info.resolution), dtype=int)
