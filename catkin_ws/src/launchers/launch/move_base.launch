@@ -22,6 +22,7 @@
         <param name="global_costmap/laser_scan_sensor/topic" value="$(arg sensor_topic)" />
 		<param name="global_costmap/obstacle_layer/laser_scan_sensor/sensor_frame" value="$(arg robot_id)_$(arg sensor_topic)"/>
 		<param name="local_costmap/global_frame" value="$(arg robot_id)/odom" />
+		<param name="global_costmap/global_frame" value="map_merge" />
 
         <!-- Overwrite the topics above, prefixing handled by ns -->
         <param name="laser_scan_sensor/topic" value="$(arg sensor_topic)"/>
