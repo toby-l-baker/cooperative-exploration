@@ -4,6 +4,8 @@
 #
 # Implements the explorer server class
 #
+
+import traceback
 import map_listener
 import rospy
 from enum import Enum
@@ -116,6 +118,7 @@ class ExplorerServer():
 
             except Exception as e:
                 print("Test Selection encountered an Exception: {}".format(e))
+                traceback.print_exc()
     
     def check_case(self, trans, robot_id):
         """
@@ -177,6 +180,12 @@ class ExplorerServer():
 
         # Get the frontier according to which situation we are in 
         front = self.select_frontier(get_pose_from_tf(trans, rot))
+        if front == -1:
+            print("Why are we letting the frontier be -1 here?")
+            result = PoseStamped()
+            result.header.frame_id = "map"
+            result.pose.orientation.w = 1
+            return result
 
         # Set target orientation to be direction connecting the robot and the frontier
         target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
@@ -292,7 +301,9 @@ class ExplorerServer():
                 # Store new goal with robot info
                 self.robot_info[robot_id].goal = response.target_position
             except Exception as e:
-                print("Exception occurred: {}".format(e))
+                print("Exception occurred with GET_TARGET: {}".format(e))
+                print("robot_id = {}".format(robot_id))
+                traceback.print_exc()
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
         if request_type == ExplorerTargetServiceRequest.BLACKLIST:
             try:
@@ -308,7 +319,9 @@ class ExplorerServer():
                 # Store new goal with robot info
                 self.robot_info[robot_id].goal = response.target_position
             except Exception as e:
-                print("Exception occurred: {}".format(e))
+                print("Exception occurred with BLACKLIST: {}".format(e))
+                print("robot_id = {}".format(robot_id))
+                traceback.print_exc()
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
 
         return response
