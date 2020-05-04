@@ -10,7 +10,7 @@ from geometry_msgs.msg import Pose, Point, Vector3
 from std_msgs.msg import Header, ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 import numpy as np
-from frontier_search import Graph
+from frontier_search import Graph, count_free_cells
 
 
 class MapListener():
@@ -80,7 +80,7 @@ class MapListener():
             min_size = rospy.get_param('/min_frontier_size')
             self.graph = Graph(initial, self.occupancy_grid, min_area, min_size)
             print("[DEBUG] Doing BFS on STDR Map to count number of free cells")
-            _, self.free_cells = self.graph.search(self.blacklist, self.blacklist_thresh, map_=self.stdr_map, map_info=self.stdr_map_info, search_input_map=True)
+            self.free_cells = count_free_cells(self.stdr_map, self.stdr_map_info)
             self.conversion = (float(self.graph.info.resolution) / self.stdr_map_info.resolution)**2 # stdr map is higher resolution than the gmapping map
             print("[DEBUG] Map has {} free cells and the conversion ratio is {}".format(self.free_cells, self.conversion))
             self.initialized = True
@@ -134,15 +134,15 @@ class MapListener():
     def occupancy_callback(self, msg):
         self.occupancy_grid = msg
         if self.initialized:
-            self.print_i += 1
+            # self.print_i += 1
             self.graph.map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
             # For saving maps
             # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/map.txt', self.graph.map)
             self.frontiers, explored_cells = self.graph.search(self.blacklist, self.blacklist_thresh)
             self.publish_frontier_markers(self.frontiers)
-            if (self.print_i % self.print_freq) == 0:
-                print("[DEBUG] {}% of the map explored".format((float(explored_cells)/self.free_cells)* self.conversion * 100.0))
-                self.print_i = 0
+            # if (self.print_i % self.print_freq) == 0:
+            print("[DEBUG] {}% of the map explored".format((float(explored_cells)/self.free_cells)* self.conversion * 100.0))
+                # self.print_i = 0
         self.setup()
     
     def stdr_map_callback(self, msg):
@@ -150,6 +150,8 @@ class MapListener():
             On startup this will just save the map and in the setup function we do a BFS to see how many free cells there are
             this only gets called once since /stdr/map is a latched topic
         """
+        if self.initialized:
+            return
         self.stdr_map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
         # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/stdr_map.txt', self.stdr_map)
         self.stdr_map_info = msg.info

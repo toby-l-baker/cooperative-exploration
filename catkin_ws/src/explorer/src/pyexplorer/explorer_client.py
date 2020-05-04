@@ -25,8 +25,8 @@ class ExplorerClient():
         self.initialized = False
         # Get ros parameters and construct objects here
         self.robot_id = robot_id
-        self._time_exceeded = rospy.get_param("~time_exceeded", 10)
-        self.time_since_goal = None
+        self._time_exceeded = rospy.get_param("~time_exceeded", 2)
+        self.last_update = None
         # Initial goal to be identity
         self.goal = PoseStamped(header=Header(stamp=rospy.Time.now(), frame_id="map"),
                                 pose=Pose(position=Point(0, 0, 0),
@@ -51,31 +51,31 @@ class ExplorerClient():
             return 
         # TODO finalize any setup needed
         self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
-        self.time_since_goal = rospy.get_time()
+        self.last_update = rospy.get_time()
         print("Client Initialized")
         self.initialized = True
 
     def loop(self):
-        # now = rospy.get_time()
-        # If we haven't had a goal for 10 secs get another one
-        # if (now - self.time_since_goal) > self._time_exceeded:
-        #     self.goal = None
         # TODO execute main functionality here
-        # if self.goal is None:
-        #     self.request_publish_goal()
-        #     self.time_since_goal = rospy.get_time()
+
         if self.status["have_a_goal"]:
-            # could do DEBUG things here if wanted/needed and use time since goal if needed
-            pass
+            # This is so we can better now how the robots are spaced when detecting edge cases
+            if (self.last_update - rospy.get_time()) > self._time_exceeded:
+                print("[DEBUG] Sending my current pose to the server")
+                self.request_publish_goal(ExplorerTargetServiceRequest.DEBUG)
+                self.last_update = rospy.get_time()
         elif self.status["mb_failure"]:
             print("[DEBUG] move_base failed, performing BLACKLIST request")
             self.request_publish_goal(ExplorerTargetServiceRequest.BLACKLIST)
+            self.last_update = rospy.get_time()
         elif self.status["target_reached"]:
             print("[DEBUG] move_base succeeded, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
+            self.last_update = rospy.get_time()
         elif not self.status["have_a_goal"]: # happens if our initial goal request fails
             print("[DEBUG] I do not have a goal, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
+            self.last_update = rospy.get_time()
         
 
     ###############################

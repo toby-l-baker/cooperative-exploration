@@ -6,11 +6,17 @@
 #
 import map_listener
 import rospy
+from enum import Enum
 import numpy as np
 import tf
 from geometry_msgs.msg import PoseStamped, Pose
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest, ExplorerTargetServiceResponse
 from utils import get_pose_stamped_from_tf, get_pose_from_tf, get_target_yaw, inverse_homog, from_quaternion, from_position
+
+class Case(Enum):
+    NORMAL = 1 # can act as if we are one robot
+    IN_PROXIMITY = 2 # another robot is nearby - select goal to spread out
+    NO_NEARBY_GOAL = 3 # no goal nearby - select goal to spread us out from other robots
 
 class RobotRecord():
     """
@@ -78,7 +84,7 @@ class ExplorerServer():
     def loop(self):
         if not self.initialized:
             return
-        # self.test_selection()
+        self.test_selection()
         return
 
     ###############################
@@ -92,20 +98,67 @@ class ExplorerServer():
         """
         for i in range(self.n_robots):
             try:
-                (trans,rot) = self.listener.lookupTransform('/map', '/robot{}'.format(i), rospy.Time(0))
+                robot_id = 'robot{}'.format(i)
+                (trans,rot) = self.listener.lookupTransform('/map', '/'+robot_id, rospy.Time(0))
                 euler = tf.transformations.euler_from_quaternion(rot)
                 front = self.select_frontier(get_pose_from_tf(trans, rot))
+                self.robot_info[robot_id] = RobotRecord()
+                self.robot_info[robot_id].pose = get_pose_stamped_from_tf(trans, rot)
+                self.robot_info[robot_id].robot_id = robot_id
                 if front == -1:
                     return
+                # case = self.check_case(trans, 'robot{}'.format(i))
+                # print("[DEBUG] robot{} is in {}".format(i, case))
                 target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
                 target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
                 target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
                 self.debug_pubs[i].publish(target_pose)
 
             except Exception as e:
-                print("Server cannot execute map transform: {}".format(e))
+                print("Test Selection encountered an Exception: {}".format(e))
     
-    def get_goal_pose(self, trans, rot):
+    def check_case(self, trans, robot_id):
+        """
+        Description: Takes in the robots location and determines if it is in any of the edge cases, the function returns which situation the robot is in
+
+        Inputs:
+            trans: (x, y, z) - equivalent to what lookupTransform returns
+            robot_id: the id of the robot we are trying to set a goal for e.g. "robot0"
+        Outputs:
+            case: either NORMAL, IN_PROXIMITY or NO_NEARBY_GOAL
+        """
+
+        pos = self.robot_info[robot_id].pose.pose.position
+        frontiers = self.map_listener.frontiers
+        
+        # 1. Check if we are close to other robots 
+        for id_, info in self.robot_info.items():
+            # make sure we aren't checking against ourselves
+            if id_ == robot_id:
+                continue
+            other_pos = info.pose.pose.position
+            dist = np.sqrt((pos.x - other_pos.x)**2 + (pos.y - other_pos.y)**2)
+            if dist < self.sensing_radius:
+                return Case.IN_PROXIMITY
+        
+        # 2. Check if there are any frontiers in our sensing radius
+        min_dist = 100
+        flag = False
+        for frontier in frontiers:
+            x, y = frontier.centroid
+            dist = np.sqrt((pos.x - x)**2 + (pos.y - y)**2)
+            if dist < min_dist:
+                min_dist = dist
+            if (dist < self.sensing_radius) and frontier.big_enough:
+                flag = True
+        print("[DEBUG] Closest Frontier Distance for {}: {}".format(robot_id, min_dist))
+        if flag:
+            return Case.NORMAL
+
+        # 3. if we have made it this far then all the frontier are far away
+        return Case.NO_NEARBY_GOAL
+
+    def get_goal_pose(self, trans, rot, robot_id):
         """
         Description: uses select frontier to find the x, y location off the frontier to go to and constructs a PoseStamped
                     message to be sent to move_base
@@ -115,19 +168,48 @@ class ExplorerServer():
 
         Returns: geometry_msgs.msg PoseStamped of where the robot should go
         """
+
         euler = tf.transformations.euler_from_quaternion(rot)
-        # Get the frontier info 
+
+        # Check for  edge cases
+        case = self.check_case(trans, robot_id)
+        print("[DEBUG] {}".format(case))
+
+        # Get the frontier according to which situation we are in 
         front = self.select_frontier(get_pose_from_tf(trans, rot))
+
         # Set target orientation to be direction connecting the robot and the frontier
         target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
         target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
+
         # Construct Pose Message
         target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
+
         return target_pose
+    
+    def select_frontier_spread(self, robot_pose):
+        """
+        Function to be called if a robot is within sensing distance of another, it checks how far the robot will be from the others goals when
+        it reaches its goal. It then selects the frontier that maximizes this distance
+
+        Inputs:
+            robot_pose: 
+                Type: geometry_msgs.msg Pose
+                What?: The current pose of the robot in world co-ordinates
+        Outputs:
+            target: 
+                Type: a dictionary containing frontier information
+                Keys["dist", "angle", "location"]: 
+                    distance from the robot to the frontier, 
+                    ccw angle from robot y axis to point, 
+                    x, y coords of the point,
+        """
+        
+        pass
 
     def select_frontier(self, robot_pose):
         """
-        Function to be called when the each robot requests a new goal, it finds the location of each frontier in the robots coordinate 
+        Function to be called when the robot has a nearby goal and is not near other robots it finds the location of each frontier in the robots coordinate 
         frame and then picks the best frontier according to the method outlined in the energy efficient exploration paper
 
         Inputs:
@@ -143,9 +225,9 @@ class ExplorerServer():
                     x, y coords of the point,
         """
         frontier_list=self.map_listener.frontiers
-
-        within = []
-        outside = []
+        # for deciding which frontier to use
+        best_angle = 2*np.pi 
+        target = None
 
         #1. Get information about the robots position
         r = from_position(robot_pose.position) # get the robots position as a numpy array
@@ -167,31 +249,14 @@ class ExplorerServer():
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if dist <= self.sensing_radius and frontier.big_enough:
-                within.append(frontier_store)
-            elif frontier.big_enough:
-                outside.append(frontier_store)
-
-        #4. If the 'within' frontiers is not empty then pick the one with the smallest theta (start at 0 to the left of the robot)
-        target = None
-        best_angle = 2*np.pi
-        if len(within) > 0:
-            for front in within:
-                if (front["angle"] < best_angle):
-                    target = front
-                    best_angle = front["angle"]
+                #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
+                if (frontier_store["angle"] < best_angle):
+                    target = frontier_store
+                    best_angle = frontier_store["angle"]
+        if target is not None:
             return target
-
-        #5. If there are no frontiers near the robot then repeat (3) for the frontiers outside the sensing radius
-        elif len(outside) > 0:
-            for front in outside:
-                if (front["angle"] < best_angle):
-                    target = front
-                    best_angle = front["angle"]
-            return target
-        
-        # Code broken or no frontiers :'(
         else:
-            return -1
+            return -1 
 
 
     ###############################
@@ -221,9 +286,11 @@ class ExplorerServer():
                 trans = [trans.x, trans.y, trans.z]
                 rot = robot_pose.pose.orientation
                 rot = [rot.x, rot.y, rot.z, rot.w]
-                response.target_position = self.get_goal_pose(trans, rot)
+                response.target_position = self.get_goal_pose(trans, rot, robot_id)
                 response.status_code = ExplorerTargetServiceResponse.SUCCESS
                 print("[DEBUG] GET_TARGET Request arrived from {}".format(robot_id))
+                # Store new goal with robot info
+                self.robot_info[robot_id].goal = response.target_position
             except Exception as e:
                 print("Exception occurred: {}".format(e))
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
@@ -235,14 +302,13 @@ class ExplorerServer():
                 rot = [rot.x, rot.y, rot.z, rot.w]
                 to_blacklist = [previous_goal.pose.position.x, previous_goal.pose.position.y]
                 self.map_listener.blacklist.append(to_blacklist)
-                response.target_position = self.get_goal_pose(trans, rot)
+                response.target_position = self.get_goal_pose(trans, rot, robot_id)
                 response.status_code = ExplorerTargetServiceResponse.SUCCESS
                 print("[DEBUG] BLACKLIST Request arrived from {}".format(robot_id))
+                # Store new goal with robot info
+                self.robot_info[robot_id].goal = response.target_position
             except Exception as e:
                 print("Exception occurred: {}".format(e))
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
-
-        # Store new goal with robot info
-        self.robot_info[robot_id].goal = response.target_position
 
         return response
