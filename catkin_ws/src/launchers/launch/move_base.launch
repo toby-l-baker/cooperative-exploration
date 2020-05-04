@@ -29,7 +29,7 @@
         <param name="local_costmap/robot_base_frame" value="$(arg robot_id)"/>
         <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
         <remap from="odom" to="$(arg odom_topic)"/>
-
+		<remap from="map" to="/map"/>
 
 	</node>
 </launch>
