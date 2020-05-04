@@ -1,6 +1,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped, Pose
 import numpy as np
+import tf
 
 def get_pose_stamped_from_tf(trans, rot):
     ps = PoseStamped()
@@ -69,4 +70,13 @@ def inverse_homog(mat):
     out[0:3, 3] = -np.transpose(R[0:3, 0:3]).dot(p)
     assert(np.allclose(np.eye(4), mat.dot(out)))
     return out
+
+def homog_from_pose(pose):
+    """
+    Helper function to get the 4x4 homogenous represntation from a ROS Pose message
+    """
+    p = from_position(pose.position) # get the robots position as a numpy array
+    g = tf.transformations.quaternion_matrix(from_quaternion(pose.orientation))
+    g[0:3, 3] = p # set p of homogeneous transform
+    return g
 

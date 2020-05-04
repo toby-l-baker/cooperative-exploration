@@ -13,7 +13,7 @@ import numpy as np
 import tf
 from geometry_msgs.msg import PoseStamped, Pose
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest, ExplorerTargetServiceResponse
-from utils import get_pose_stamped_from_tf, get_pose_from_tf, get_target_yaw, inverse_homog, from_quaternion, from_position
+from utils import get_pose_stamped_from_tf, get_pose_from_tf, get_target_yaw, inverse_homog, from_quaternion, from_position, homog_from_pose
 
 class Case(Enum):
     NORMAL = 1 # can act as if we are one robot
@@ -81,13 +81,12 @@ class ExplorerServer():
         while self.map_listener.frontiers == None:
             rospy.sleep(0.5)
         print("[DEBUG] Explorer Server is initialized")
+        # self.test_selection()
         self.initialized = True
 
     def loop(self):
         if not self.initialized:
             return
-        self.test_selection()
-        return
 
     ###############################
     # Helper functions here
@@ -102,22 +101,27 @@ class ExplorerServer():
             try:
                 robot_id = 'robot{}'.format(i)
                 (trans,rot) = self.listener.lookupTransform('/map', '/'+robot_id, rospy.Time(0))
-                euler = tf.transformations.euler_from_quaternion(rot)
-                front = self.select_frontier(get_pose_from_tf(trans, rot))
                 self.robot_info[robot_id] = RobotRecord()
                 self.robot_info[robot_id].pose = get_pose_stamped_from_tf(trans, rot)
                 self.robot_info[robot_id].robot_id = robot_id
-                if front == -1:
+                euler = tf.transformations.euler_from_quaternion(rot)
+                case = self.check_case(trans, 'robot{}'.format(i))
+                # Get the frontier according to which situation we are in 
+                if case != Case.NORMAL:
+                    front = self.select_frontier_spread(get_pose_from_tf(trans, rot), robot_id)
+                else:
+                    front = self.select_frontier(get_pose_from_tf(trans, rot))
+                if front == None:
+                    print("[DEBUG] Test Selection got front == None")
                     return
-                # case = self.check_case(trans, 'robot{}'.format(i))
-                # print("[DEBUG] robot{} is in {}".format(i, case))
                 target_orientation = get_target_yaw(trans, euler, front["location"], front["angle"])
                 target_orientation = tf.transformations.quaternion_from_euler(target_orientation[0], target_orientation[1], target_orientation[2])
                 target_pose = get_pose_stamped_from_tf((front["location"][0], front["location"][1], 0), target_orientation)
+                self.robot_info[robot_id].goal = target_pose
                 self.debug_pubs[i].publish(target_pose)
 
             except Exception as e:
-                print("Test Selection encountered an Exception: {}".format(e))
+                print("[DEBUG] Test Selection encountered an Exception: {}".format(e))
                 traceback.print_exc()
     
     def check_case(self, trans, robot_id):
@@ -141,22 +145,16 @@ class ExplorerServer():
                 continue
             other_pos = info.pose.pose.position
             dist = np.sqrt((pos.x - other_pos.x)**2 + (pos.y - other_pos.y)**2)
-            if dist < self.sensing_radius:
+            if (dist < self.sensing_radius) and (info.goal is not None):
                 return Case.IN_PROXIMITY
         
         # 2. Check if there are any frontiers in our sensing radius
-        min_dist = 100
-        flag = False
         for frontier in frontiers:
             x, y = frontier.centroid
             dist = np.sqrt((pos.x - x)**2 + (pos.y - y)**2)
-            if dist < min_dist:
-                min_dist = dist
             if (dist < self.sensing_radius) and frontier.big_enough:
-                flag = True
-        print("[DEBUG] Closest Frontier Distance for {}: {}".format(robot_id, min_dist))
-        if flag:
-            return Case.NORMAL
+                return Case.NORMAL
+            
 
         # 3. if we have made it this far then all the frontier are far away
         return Case.NO_NEARBY_GOAL
@@ -168,6 +166,7 @@ class ExplorerServer():
         Inputs:
             trans: a three tuple returned from tf listener of the robots x, y, z coordinates
             rot: a quad tuple containing the quaternion of the robots pose
+            robot_id: id of the robot who is requesting a new goal e.g. "robot0"
 
         Returns: geometry_msgs.msg PoseStamped of where the robot should go
         """
@@ -179,8 +178,13 @@ class ExplorerServer():
         print("[DEBUG] {}".format(case))
 
         # Get the frontier according to which situation we are in 
-        front = self.select_frontier(get_pose_from_tf(trans, rot))
-        if front == -1:
+        if case != Case.NORMAL:
+            front = self.select_frontier_spread(get_pose_from_tf(trans, rot), robot_id)
+        else:
+            front = self.select_frontier(get_pose_from_tf(trans, rot))
+
+        # front = self.select_frontier(get_pose_from_tf(trans, rot))
+        if front == None:
             print("Why are we letting the frontier be -1 here?")
             result = PoseStamped()
             result.header.frame_id = "map"
@@ -196,10 +200,10 @@ class ExplorerServer():
 
         return target_pose
     
-    def select_frontier_spread(self, robot_pose):
+    def select_frontier_spread(self, robot_pose, robot_id):
         """
         Function to be called if a robot is within sensing distance of another, it checks how far the robot will be from the others goals when
-        it reaches its goal. It then selects the frontier that maximizes this distance
+        it reaches its goal. It then selects the frontier that maximizes this distance. Works for n robots and m frontiers. Complexity O(nm)
 
         Inputs:
             robot_pose: 
@@ -208,13 +212,41 @@ class ExplorerServer():
         Outputs:
             target: 
                 Type: a dictionary containing frontier information
-                Keys["dist", "angle", "location"]: 
-                    distance from the robot to the frontier, 
+                Keys[angle", "location"]: 
                     ccw angle from robot y axis to point, 
                     x, y coords of the point,
         """
         
-        pass
+        frontier_list = self.map_listener.frontiers
+
+        # 1. Iterate over all frontiers and calculate distance between it and the other robots goals
+        # 2. While we are iterating keep checking which is the best (the one with the max resultant separation)
+        target = None
+        best_distance = 0
+        for frontier in frontier_list:
+            x, y = frontier.centroid
+            dist = 0
+            # check the distance from this frontier to the other robots goals
+            for id_, info in self.robot_info.items():
+                # make sure we aren't checking against ourselves
+                if id_ == robot_id:
+                    continue
+                other_goal = info.goal.pose.position
+                dist += np.sqrt((x - other_goal.x)**2 + (y - other_goal.y)**2) # dist rfom frontier to other robots goal
+            # if this is the best frontier we have found then store it
+            if dist > best_distance:
+                best_distance = dist
+                target = {}
+                g = homog_from_pose(robot_pose)
+                g_inv = inverse_homog(g)
+                p = g_inv.dot(np.hstack((frontier.centroid, np.array([0, 1])))) # get frontier in robot coordinate frame
+                angle = np.arctan2(p[0], p[1])
+                if angle < 0: # shift from [-pi, pi] to [0, 2pi]
+                    angle = angle + 2*np.pi
+                target["angle"] = angle # store parameters
+                target["location"] = frontier.centroid
+
+        return target
 
     def select_frontier(self, robot_pose):
         """
@@ -239,16 +271,15 @@ class ExplorerServer():
         target = None
 
         #1. Get information about the robots position
-        r = from_position(robot_pose.position) # get the robots position as a numpy array
-        R = tf.transformations.quaternion_matrix(from_quaternion(robot_pose.orientation)) # get the rotation matrix representing the robot's base frame (a 4x4 homogeneous representation)
-        R[0:3, 3] = r # set p of homogeneous transform
-        R_inv = inverse_homog(R)
+        g = homog_from_pose(robot_pose)
+        g_inv = inverse_homog(g)
+
 
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
             frontier_store = {}
             front_homog = np.hstack((frontier.centroid, np.array([0, 1]))) # convert frontier location to a homogeneous representation
-            p = R_inv.dot(front_homog) # frontier location in local coordinates
+            p = g_inv.dot(front_homog) # frontier location in local coordinates
             dist = np.sqrt(p[0]**2 + p[1]**2) 
             angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
@@ -265,7 +296,7 @@ class ExplorerServer():
         if target is not None:
             return target
         else:
-            return -1 
+            return None
 
 
     ###############################
