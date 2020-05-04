@@ -159,7 +159,7 @@ if args.plot_frontiers:
     fronts = []
     searched_points = []
     for i in range(8):
-        front = np.loadtxt("front{}.txt".format(i))
+        front = np.loadtxt("data/front{}.txt".format(i))
         fronts.append(front)
         searched_points.append(filter_frontiers(front, data))
 
