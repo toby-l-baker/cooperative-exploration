@@ -11,8 +11,13 @@ import rospy
 import explorer_server
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Pose
 from std_msgs.msg import Header
-from move_base_msgs.msg import MoveBaseActionResult
+from move_base_msgs.msg import MoveBaseAction, MoveBaseActionResult, MoveBaseGoal
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest
+
+# Brings in the SimpleActionClient
+import actionlib
+from actionlib_msgs.msg import GoalStatus
+from move_base_msgs.msg import MoveBaseActionResult
 
 class ExplorerClient():
     """
@@ -38,10 +43,11 @@ class ExplorerClient():
         self.status["target_reached"] = 0
         self.status["have_a_goal"] = 0
         # Setup Movebase
-        self.move_base = rospy.Publisher("{}/move_base_simple/goal".format(robot_id),
-                                          PoseStamped, queue_size=10)
-        rospy.Subscriber("{}/move_base/result".format(robot_id), MoveBaseActionResult, self.move_base_result_cb)
-        rospy.Subscriber("{}/move_base_simple/goal".format(robot_id), PoseStamped, self.move_base_goal_cb)
+        self.move_base_api = actionlib.SimpleActionClient('{}/move_base'.format(robot_id), MoveBaseAction)
+        #self.move_base = rospy.Publisher("{}/move_base_simple/goal".format(robot_id),
+        #                                  PoseStamped, queue_size=10)
+        #rospy.Subscriber("{}/move_base/result".format(robot_id), MoveBaseActionResult, self.move_base_result_cb)
+        #rospy.Subscriber("{}/move_base_simple/goal".format(robot_id), PoseStamped, self.move_base_goal_cb)
 
         rospy.wait_for_service('/explorer_target')
         self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
@@ -82,6 +88,17 @@ class ExplorerClient():
     # Helper functions here
     ###############################
 
+    def send_move_base_goal(self, goal):
+        """
+        Wrapper around simple action client.
+
+        Arguments:
+        goal -- The PoseStamped to request move base to go to
+        """
+        msg = MoveBaseGoal()
+        msg.target_pose = goal
+        self.move_base_api.send_goal(msg, done_cb=self.done_cb, active_cb=None, feedback_cb=self.feedback_cb)
+
     def request_publish_goal(self, request_type):
         """ 
         Function should be invoked once on setup and also every time we reach our goal move_
@@ -99,7 +116,7 @@ class ExplorerClient():
             request.previous_goal = self.goal # self.goal will always be previous until the server responds
             self.response = self.service_proxy(request)
             self.goal = self.response.target_position
-            self.move_base.publish(self.goal)
+            self.send_move_base_goal(self.goal)
             # when we get a new goal reset all of the status flags - done in move_base_simple/goal callback
             return 1
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -110,26 +127,38 @@ class ExplorerClient():
     # Callback functions here
     ###############################
 
-    def move_base_result_cb(self, msg):
+    def done_cb(self, goal_status, msg):
+        """
+        Done callback for MoveBase.
+
+        Arguments:
+        goal_status -- integer representing the final state of the actionlib. Corresponds to GoalStatus
+        msg -- Result message (empty for move_base)
+        """
+        print("[DEBUG] MoveBase Action Done: Resulting code {}".format(goal_status))
         # TODO Handle other status values
-        if msg.status.status == 3:
+        if goal_status == GoalStatus.SUCCEEDED:
             # Move base has succeeded, clear current goal
             # self.goal = None
             self.status["target_reached"] = 1
             self.status["have_a_goal"] = 0
             self.status["mb_failure"] = 0
-        if msg.status.status == 4:
+        if goal_status == GoalStatus.ABORTED:
             # move base has failed we need to get a new target
             # self.goal = None
             self.status["target_reached"] = 0
             self.status["have_a_goal"] = 0
             self.status["mb_failure"] = 1
-    
-    def move_base_goal_cb(self, msg):
+
+    def feedback_cb(self, msg):
         """
-        To make sure that have a goal only gets called once we publish to move_base_simple/goal
+        Feedback callback for MoveBase.
+
+        Arguments:
+        msg -- Feedback message containing the current robot pose from move base
         """
+        print("[DEBUG] MoveBase Feedback.")
         self.status["have_a_goal"] = 1
         self.status["target_reached"] = 0
         self.status["mb_failure"] = 0
-        print("[DEBUG] published to move_base_simple/goal successfully")
+        self.pose = msg.base_position
