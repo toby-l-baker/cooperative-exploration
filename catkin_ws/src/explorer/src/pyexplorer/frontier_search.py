@@ -2,6 +2,7 @@ from collections import deque
 import enum
 import numpy as np
 import rospy
+import copy
 
 ###################
 # UTILITY FUNCTIONS
@@ -166,23 +167,27 @@ class Graph:
 
 
         frontiers = [] # frontier cells continually changing so search everytime
-        self.frontier_flags.fill(False)
-        self.leaf_node_array.fill(False)
-        self.explored_flags = np.zeros_like(self.map, dtype=bool)
-        self.explored_cells = 0
+        self.frontier_flags = np.zeros_like(self.map, dtype=bool)
+        self.leaf_node_array = np.zeros_like(self.map, dtype=bool)
+        # self.explored_flags = np.zeros_like(self.map, dtype=bool)
+        # self.explored_cells = 0
 
-        # if len(self.leaf_nodes) == 0:
-        start = np.array(world2map(self.head, self.map_origin, self.info.resolution), dtype=int)
-        start = nearest_cell(start, self.map)
-        self.bfs.append(start) # may need to alter this to be the nearest free cell
-        self.explored_flags[start[0], start[1]] = True
-            # print("[DEBUG] Starting BFS on /map from centre")
-        # else:
-        #     self.bfs = self.leaf_nodes
-        #     print("[DEBUG] Starting BFS on /map with {} leaf nodes".format(len(self.leaf_nodes)))
-
+        if len(self.leaf_nodes) == 0:
+            start = np.array(world2map(self.head, self.map_origin, self.info.resolution), dtype=int)
+            start = nearest_cell(start, self.map)
+            self.bfs.append(start) # may need to alter this to be the nearest free cell
+            self.explored_flags[start[0], start[1]] = True
+            print("[DEBUG] Starting BFS on /map from centre")
+        else:
+            self.bfs = copy.copy(self.leaf_nodes)
+            self.leaf_nodes.clear()
+            print("[DEBUG] Starting BFS on /map with {} leaf nodes".format(len(self.bfs)))
+        # count = 0
         while self.bfs:
             idx = self.bfs.popleft()
+            if self.isLeafNode(idx):
+                self.leaf_nodes.append(idx)
+                self.leaf_node_array[idx[0], idx[1]] = True
             for p in children4(idx):
                 # Check that the cell is free and we haven't visited it before
                 cell_type = get_cell_type(self.map[p[0], p[1]])
@@ -201,9 +206,10 @@ class Graph:
                     new_frontier = self.buildNewFrontier(p)
                     if new_frontier.size > self.min_frontier_size:
                         frontiers.append(new_frontier)
-
+            # count += 1
+        # print("[DEBUG] THIS MANY ITERATIONS {}".format(count))
         self.frontiers = self.filter_frontiers(frontiers, blacklist, thresh)
-
+        np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
         return self.frontiers, self.explored_cells
                     
     def filter_frontiers(self, frontiers, blacklist, thresh):
