@@ -209,7 +209,7 @@ class Graph:
             # count += 1
         # print("[DEBUG] THIS MANY ITERATIONS {}".format(count))
         self.frontiers = self.filter_frontiers(frontiers, blacklist, thresh)
-        np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
+        # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
         return self.frontiers, self.explored_cells
                     
     def filter_frontiers(self, frontiers, blacklist, thresh):

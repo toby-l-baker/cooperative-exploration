@@ -108,7 +108,7 @@ class MapListener():
             size /= 100
 
             # For saving frontier points
-            # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/front{}.txt'.format(i), front.points)
+            # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/front{}.txt'.format(i), front.points)
             col = None
             if front.blacklisted:
                 col = ColorRGBA(a=1) # black
@@ -137,7 +137,7 @@ class MapListener():
             # self.print_i += 1
             self.graph.map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
             # For saving maps
-            # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/map.txt', self.graph.map)
+            # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/map.txt', self.graph.map)
             self.frontiers, explored_cells = self.graph.search(self.blacklist, self.blacklist_thresh)
             self.publish_frontier_markers(self.frontiers)
             # if (self.print_i % self.print_freq) == 0:
@@ -153,7 +153,7 @@ class MapListener():
         if self.initialized:
             return
         self.stdr_map = np.asarray(msg.data, dtype=np.int8).reshape(msg.info.height, msg.info.width)
-        # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/stdr_map.txt', self.stdr_map)
+        # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/stdr_map.txt', self.stdr_map)
         self.stdr_map_info = msg.info
         print("[DEBUG] /stdr/map received by map listener")
 
