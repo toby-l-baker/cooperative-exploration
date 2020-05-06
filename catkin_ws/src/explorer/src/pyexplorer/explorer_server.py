@@ -87,6 +87,7 @@ class ExplorerServer():
     def loop(self):
         if not self.initialized:
             return
+        # self.test_selection()
 
     ###############################
     # Helper functions here
@@ -270,8 +271,8 @@ class ExplorerServer():
         """
         frontier_list=self.map_listener.frontiers
         # for deciding which frontier to use
-        best_within = 2*np.pi 
-        best_outside = 2*np.pi
+        best_within = 3*np.pi
+        best_outside = 3*np.pi
         target_within = None
         target_outside = None
 
@@ -287,20 +288,24 @@ class ExplorerServer():
             dist = np.sqrt(p[0]**2 + p[1]**2) 
             angle = np.arctan2(p[0], p[1])
             frontier_store["dist"] = dist
+
             if angle < 0: # shift from [-pi, pi] to [0, 2pi]
                 angle = angle + 2*np.pi
+            tmp = angle - np.pi/4 # for adjusting priority to front & left
+            if tmp < 0:
+                tmp = tmp + 2*np.pi # move to 0 to 2pi range starting from 45deg from the y-axis
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted:
                 #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
-                if (frontier_store["angle"] < best_within):
+                if (tmp < best_within):
                     target_within = frontier_store
-                    best_within = frontier_store["angle"]
+                    best_within = tmp#frontier_store["angle"]
             elif frontier.big_enough and not frontier.blacklisted:
-                if (frontier_store["angle"] < best_outside):
+                if (tmp < best_outside):
                     target_outside = frontier_store
-                    best_outside = frontier_store["angle"]
+                    best_outside = tmp#frontier_store["angle"]
 
         if target_within is not None:
             return target_within
