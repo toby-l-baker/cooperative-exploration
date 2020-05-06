@@ -124,7 +124,7 @@ class MapListener():
                                           scale=Vector3(x=size,y=size,z=size),
                                           color=col)
             output.append(marker)
-        delete_markers = [Marker(type=3)]
+        delete_markers = [Marker(header=Header(stamp=rospy.Time.now(), frame_id="map"), type=3)]
         self.pub.publish(MarkerArray(markers=delete_markers))
         self.pub.publish(MarkerArray(markers=output))
 

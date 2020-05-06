@@ -38,6 +38,8 @@ class ExplorerClient():
         self.too_far = 400.0 # distance in meters to preempt move_base and get new target
         self._time_exceeded = rospy.get_param("~time_exceeded", 20)
         self._message_delay_time = rospy.Duration(rospy.get_param("~message_delay_time", 5))
+        self.MAX_STRIKES = 3
+        self.current_strikes = 0
         self.last_update = None
         self.last_message_time = rospy.Time.now()
         self.listener = tf.TransformListener() # for getting robot pose in world frame
@@ -131,6 +133,7 @@ class ExplorerClient():
         Arguments:
         goal -- The PoseStamped to request move base to go to
         """
+        self.current_strikes = 0
         msg = MoveBaseGoal()
         msg.target_pose = goal
         print("[DEBUG] Sent movebase {}".format(msg))
@@ -254,6 +257,7 @@ class ExplorerClient():
             print("[ALERT] Probably want to clear costmaps here")
             self.clear_costmaps()
             self._timeout_callback_tracker = 0
+            self.current_strikes += 1
 
         self.pose = new_pose
         if utils.dist(self.pose, self.goal) < self.close_enough:
@@ -262,4 +266,8 @@ class ExplorerClient():
 
         if utils.dist(self.pose, self.goal) > self.too_far:
             print("[ALERT] Canceling goals due to being too far")
+            self.move_base_api.cancel_goal()
+
+        if self.current_strikes >= self.MAX_STRIKES:
+            print("[ALERT] Canceling goals due to too many stopped strikes")
             self.move_base_api.cancel_goal()
