@@ -6,7 +6,8 @@ Panels:
       Expanded:
         - /TF1/Frames1
         - /TF1/Tree1
-      Splitter Ratio: 0.5096524953842163
+        - /Map3
+      Splitter Ratio: 0.5088235139846802
     Tree Height: 559
   - Class: rviz/Selection
     Name: Selection
@@ -233,18 +234,18 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Map
       Topic: /stdr/map
       Unreliable: false
       Use Timestamp: false
-      Value: true
+      Value: false
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /frontier_markers
       Name: MarkerArray
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -297,19 +298,39 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Map
       Topic: /robot0/move_base/local_costmap/costmap
+      Unreliable: false
+      Use Timestamp: false
+      Value: false
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: false
+      Name: Map
+      Topic: /robot1/move_base/local_costmap/costmap
+      Unreliable: false
+      Use Timestamp: false
+      Value: false
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: costmap
+      Draw Behind: true
+      Enabled: true
+      Name: Map
+      Topic: /robot0/map
       Unreliable: false
       Use Timestamp: false
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz/Map
-      Color Scheme: map
-      Draw Behind: false
+      Color Scheme: costmap
+      Draw Behind: true
       Enabled: true
       Name: Map
-      Topic: /robot1/move_base/local_costmap/costmap
+      Topic: /robot1/map
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -340,7 +361,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0.014999951235949993
+      Angle: -0.04000001773238182
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -350,11 +371,11 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 41.511573791503906
+      Scale: 35.94125747680664
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
-      X: 8.06540584564209
-      Y: 6.074620723724365
+      X: 10.113876342773438
+      Y: 10.99627685546875
     Saved: ~
 Window Geometry:
   Displays:
