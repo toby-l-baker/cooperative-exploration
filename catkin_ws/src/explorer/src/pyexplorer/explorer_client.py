@@ -58,7 +58,7 @@ class ExplorerClient():
         # Used to detect robot being stuck in place due to MoveBase shenanigans
         self._timeout_callback_tracker = 0
         self.TIMEOUT = 100
-        self.RESET_TIME = 1000
+        self.RESET_TIME = 100
 
         # setup dictionary to aid client request decisions
         self.status = {}
@@ -71,6 +71,7 @@ class ExplorerClient():
         print("[DEBUG] Waiting for MoveBase at /{}/move_base".format(robot_id))
         self.move_base_api.wait_for_server()
 
+        print("[DEBUG] Waiting for explorer server at /explorer_target")
         rospy.wait_for_service('/explorer_target')
         self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
 
@@ -131,6 +132,18 @@ class ExplorerClient():
         self.move_base_api.send_goal(msg, done_cb=self.done_cb, active_cb=None, feedback_cb=self.feedback_cb)
         print("[DEBUG] Api call done")
 
+    def convert_pose_to(self, new_frame, pose_stamped):
+        """
+        Uses the TF Listener to convert the pose to a new frame
+        """
+        result = None
+        while result is None:
+            try:
+                result = self.listener.transformPose(new_frame, pose_stamped)
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                continue
+        return result
+
     def request_publish_goal(self, request_type):
         """ 
         Function should be invoked once on setup and also every time we reach our goal move_
@@ -156,7 +169,7 @@ class ExplorerClient():
             new_goal = response.target_position.pose
             if new_goal.position.x == 0 and new_goal.position.y == 0 and new_goal.position.z == 0:
                 print("[ALERT] Got an all zero goal position")
-                self.status["reset_timer"] = self.RESET_TIME
+                self.status["retry_timer"] = self.RESET_TIME
                 self.status["target_reached"] = False
                 self.status["have_a_goal"] = True
                 self.status["mb_failure"] = False
@@ -164,8 +177,7 @@ class ExplorerClient():
             self.status["target_reached"] = False
             self.status["have_a_goal"] = True
             self.status["mb_failure"] = False
-            self.goal = response.target_position
-            self.goal.header.frame_id = "map_merge"
+            self.goal = self.convert_pose_to("map_merge", response.target_position)
             self.send_move_base_goal(self.goal)
             self.goal.header.stamp = rospy.Time.now()
             # when we get a new goal reset all of the status flags - done in move_base_simple/goal callback
