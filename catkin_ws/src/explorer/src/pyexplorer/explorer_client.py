@@ -253,6 +253,7 @@ class ExplorerClient():
         if self._timeout_callback_tracker > self.TIMEOUT:
             print("[ALERT] Probably want to clear costmaps here")
             self.clear_costmaps()
+            self._timeout_callback_tracker = 0
 
         self.pose = new_pose
         if utils.dist(self.pose, self.goal) < self.close_enough:
