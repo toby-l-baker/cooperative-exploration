@@ -3,16 +3,22 @@
     <arg name="sensor_topic" default="laser_0"/>
 
     <node pkg="gmapping" type="slam_gmapping" name="gmapping" output="screen" ns="$(arg robot_id)">
-        <remap from="scan" to="$(arg sensor_topic)" />
-        <param name="base_frame" value="$(arg robot_id)" />
+        <remap from="scan" to="$(arg sensor_topic)"/>
+        <param name="base_frame" value="$(arg robot_id)"/>
 
         <!-- Set the map size to be smaller -->
         <param name="xmin" value="-10.0"/>
         <param name="ymin" value="-10.0"/>
         <param name="xmax" value="10.0"/>
         <param name="ymax" value="10.0"/>
+        <param name="delta" value="0.10"/>
 
         <param name="odom_frame" value="$(arg robot_id)/odom"/>
+
+        <!-- Controls map update frequency -->
+        <param name="temporalUpdate" value="1.0"/>
+        <param name="linearUpdate" value="0.5"/>
+        <param name="particles" value="20"/>
     </node>
 
 </launch>
