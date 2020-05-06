@@ -146,7 +146,9 @@ class Graph:
         self.explored_flags = np.zeros_like(self.map, dtype=bool) # explored cells stored as booleans
         self.frontier_flags = np.zeros_like(self.map, dtype=bool) # frontier cells stored as booleans
         self.frontiers = [] # list of frontiers
-        self.leaf_nodes = deque() # stores the leaf nodes in the BFS of the map
+
+        self.leaf_nodes = [deque(), deque()] # stores the leaf nodes in the BFS of the map
+        self.q_to_fill = 0
         self.leaf_node_array = np.zeros_like(self.map, dtype=bool) # leaf node cells stored as booleans
         self.explored_cells = 0 # number of cells we have explored so far
 
@@ -172,21 +174,24 @@ class Graph:
         # self.explored_flags = np.zeros_like(self.map, dtype=bool)
         # self.explored_cells = 0
 
-        if len(self.leaf_nodes) == 0:
+        if len(self.leaf_nodes[0]) == len(self.leaf_nodes[1]) and len(self.leaf_nodes[0]) == 0: # if they are both empty 
             start = np.array(world2map(self.head, self.map_origin, self.info.resolution), dtype=int)
             start = nearest_cell(start, self.map)
             self.bfs.append(start) # may need to alter this to be the nearest free cell
             self.explored_flags[start[0], start[1]] = True
             print("[DEBUG] Starting BFS on /map from centre")
         else:
-            self.bfs = copy.copy(self.leaf_nodes)
-            self.leaf_nodes.clear()
+            # set bfs to be the queue we are not filling with leaf nodes
+            if self.q_to_fill == 1:
+                self.bfs = self.leaf_nodes[0]
+            else:
+                self.bfs = self.leaf_nodes[1]
             print("[DEBUG] Starting BFS on /map with {} leaf nodes".format(len(self.bfs)))
         # count = 0
         while self.bfs:
             idx = self.bfs.popleft()
             if self.isLeafNode(idx):
-                self.leaf_nodes.append(idx)
+                self.leaf_nodes[self.q_to_fill].append(idx)
                 self.leaf_node_array[idx[0], idx[1]] = True
             for p in children4(idx):
                 # Check that the cell is free and we haven't visited it before
@@ -196,10 +201,10 @@ class Graph:
                     self.bfs.append(p)
                     self.explored_cells += 1
                     if self.isLeafNode(p):
-                        self.leaf_nodes.append(p)
+                        self.leaf_nodes[self.q_to_fill].append(p)
                         self.leaf_node_array[p[0], p[1]] = True
                 elif self.isLeafNode(p):
-                    self.leaf_nodes.append(p)
+                    self.leaf_nodes[self.q_to_fill].append(p)
                     self.leaf_node_array[p[0], p[1]] = True
                 elif self.isNewFrontierCell(p):
                     self.frontier_flags[p[0], p[1]] = True
@@ -210,6 +215,13 @@ class Graph:
         # print("[DEBUG] THIS MANY ITERATIONS {}".format(count))
         self.frontiers = self.filter_frontiers(frontiers, blacklist, thresh)
         #np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
+
+        # toggle which queue we fill for each iteration
+        if self.q_to_fill == 0:
+            self.q_to_fill = 1
+        else:
+            self.q_to_fill = 0
+
         return self.frontiers, self.explored_cells
                     
     def filter_frontiers(self, frontiers, blacklist, thresh):
