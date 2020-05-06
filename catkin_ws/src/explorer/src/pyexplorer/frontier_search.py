@@ -209,11 +209,7 @@ class Graph:
             # count += 1
         # print("[DEBUG] THIS MANY ITERATIONS {}".format(count))
         self.frontiers = self.filter_frontiers(frontiers, blacklist, thresh)
-<<<<<<< HEAD
-        # np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
-=======
         #np.savetxt('/home/tobylbaker/cooperative-exploration/catkin_ws/src/explorer/src/front_test/data/leaf_nodes.txt', self.leaf_node_array)
->>>>>>> a382b1f0c9f1bc25a84def034b8afefb4a768107
         return self.frontiers, self.explored_cells
                     
     def filter_frontiers(self, frontiers, blacklist, thresh):
@@ -243,7 +239,7 @@ class Graph:
 
             # First check if we should blacklist the frontier
             for x, y in blacklist:
-                dist = np.sqrt((centroid[0] - x)**2 + (centroid[1] - y)**2)
+                dist = np.sqrt((centroid[1] - x)**2 + (centroid[0] - y)**2)
                 if dist < thresh:
                     frontiers[i].blacklisted = True
                     n_blacklisted += 1
