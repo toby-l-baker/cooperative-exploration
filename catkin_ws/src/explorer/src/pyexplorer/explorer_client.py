@@ -11,6 +11,7 @@ import rospy
 import explorer_server
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Pose
 from std_msgs.msg import Header
+from std_srvs.srv import Empty
 from move_base_msgs.msg import MoveBaseAction, MoveBaseActionResult, MoveBaseGoal
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest
 import utils
@@ -75,7 +76,9 @@ class ExplorerClient():
 
         print("[DEBUG] Waiting for explorer server at /explorer_target")
         rospy.wait_for_service('/explorer_target')
-        self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
+        rospy.wait_for_service('/{}/move_base/clear_costmaps'.format(robot_id))
+        self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService)
+        self.clear_costmaps = rospy.ServiceProxy('/{}/move_base/clear_costmaps'.format(robot_id), Empty)
 
     def setup(self):
         if self.initialized:
@@ -141,8 +144,10 @@ class ExplorerClient():
         result = None
         while result is None:
             try:
+                pose_stamped.header.stamp = rospy.Time.now()
                 result = self.listener.transformPose(new_frame, pose_stamped)
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+                print("e: {}".format(e))
                 continue
         return result
 
@@ -164,7 +169,7 @@ class ExplorerClient():
             request.robot_pose.header.frame_id = "/map"
             request.robot_pose.pose.position = Point(trans[0], trans[1], trans[2])
             request.robot_pose.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
-            request.previous_goal = self.goal # self.goal will always be previous until the server responds
+            request.previous_goal = self.convert_pose_to("map", self.goal)
             response = self.service_proxy(request)
             if request_type == ExplorerTargetServiceRequest.DEBUG:
                 print("[DEBUG] sent DEBUG request {}".format(request))
@@ -247,6 +252,7 @@ class ExplorerClient():
 
         if self._timeout_callback_tracker > self.TIMEOUT:
             print("[ALERT] Probably want to clear costmaps here")
+            self.clear_costmaps()
 
         self.pose = new_pose
         if utils.dist(self.pose, self.goal) < self.close_enough:
