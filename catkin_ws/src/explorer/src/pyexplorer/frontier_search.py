@@ -235,11 +235,11 @@ class Graph:
             unexplored_cells = 0
             checked_flags = np.zeros_like(self.map, dtype=bool)
             bfs = deque()
-            centroid = np.array([frontiers[i].centroid[1], frontiers[i].centroid[0]])
+            centroid = np.array([frontiers[i].centroid[1], frontiers[i].centroid[0]]) # flipped so the conversion to map frame works properly
 
             # First check if we should blacklist the frontier
             for x, y in blacklist:
-                dist = np.sqrt((centroid[1] - x)**2 + (centroid[0] - y)**2)
+                dist = np.sqrt((centroid[1] - x)**2 + (centroid[0] - y)**2) # flipped back since blacklisted points are in world coords
                 if dist < thresh:
                     frontiers[i].blacklisted = True
                     n_blacklisted += 1
