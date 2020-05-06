@@ -34,7 +34,7 @@ class ExplorerClient():
         self.initialized = False
         # Get ros parameters and construct objects here
         self.robot_id = robot_id
-        self.close_enough = 0.75 # distance in meters to preempt move_base and get new target
+        self.close_enough = 0.05 # distance in meters to preempt move_base and get new target
         self.too_far = 400.0 # distance in meters to preempt move_base and get new target
         self._time_exceeded = rospy.get_param("~time_exceeded", 20)
         self._message_delay_time = rospy.Duration(rospy.get_param("~message_delay_time", 5))
