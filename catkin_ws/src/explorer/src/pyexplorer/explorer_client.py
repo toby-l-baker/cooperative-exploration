@@ -13,11 +13,14 @@ from geometry_msgs.msg import PoseStamped, Point, Quaternion, Pose
 from std_msgs.msg import Header
 from move_base_msgs.msg import MoveBaseAction, MoveBaseActionResult, MoveBaseGoal
 from explorer.srv import ExplorerTargetService, ExplorerTargetServiceRequest
+import utils
 
 # Brings in the SimpleActionClient
 import actionlib
 from actionlib_msgs.msg import GoalStatus
 from move_base_msgs.msg import MoveBaseActionResult
+
+import numpy as np
 
 class ExplorerClient():
     """
@@ -30,24 +33,43 @@ class ExplorerClient():
         self.initialized = False
         # Get ros parameters and construct objects here
         self.robot_id = robot_id
-        self._time_exceeded = rospy.get_param("~time_exceeded", 2)
+        self.close_enough = 0.75 # distance in meters to preempt move_base and get new target
+        self.too_far = 400.0 # distance in meters to preempt move_base and get new target
+        self._time_exceeded = rospy.get_param("~time_exceeded", 20)
         self.last_update = None
-        # Initial goal to be identity
-        self.goal = PoseStamped(header=Header(stamp=rospy.Time.now(), frame_id="map"),
+        self.listener = tf.TransformListener() # for getting robot pose in world frame
+        # Stores the current goal travelling to
+        self.goal = PoseStamped(header=Header(stamp=rospy.Time.now(), frame_id="map_merge"),
                                 pose=Pose(position=Point(0, 0, 0),
                                           orientation=Quaternion(0, 0, 0, 1)))
-        self.listener = tf.TransformListener() # for getting robot pose in world frame
+
+        # Stores the current pose of the robot
+        self.pose = None
+        while self.pose is None:
+            try:
+                (trans,rot) = self.listener.lookupTransform('/map_merge', '/{}'.format(self.robot_id), rospy.Time(0))
+                self.pose = PoseStamped()
+                self.pose.header.frame_id = "/map_merge"
+                self.pose.position = Pose(trans[0], trans[1], trans[2])
+                self.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
+            except:
+                rospy.sleep(1)
+
+        # Used to detect robot being stuck in place due to MoveBase shenanigans
+        self._timeout_callback_tracker = 0
+        self.TIMEOUT = 100
+        self.RESET_TIME = 1000
+
         # setup dictionary to aid client request decisions
         self.status = {}
-        self.status["mb_failure"] = 0
-        self.status["target_reached"] = 0
-        self.status["have_a_goal"] = 0
+        self.status["mb_failure"] = False
+        self.status["target_reached"] = False
+        self.status["have_a_goal"] = False
+        self.status["retry_timer"] = -1
         # Setup Movebase
-        self.move_base_api = actionlib.SimpleActionClient('{}/move_base'.format(robot_id), MoveBaseAction)
-        #self.move_base = rospy.Publisher("{}/move_base_simple/goal".format(robot_id),
-        #                                  PoseStamped, queue_size=10)
-        #rospy.Subscriber("{}/move_base/result".format(robot_id), MoveBaseActionResult, self.move_base_result_cb)
-        #rospy.Subscriber("{}/move_base_simple/goal".format(robot_id), PoseStamped, self.move_base_goal_cb)
+        self.move_base_api = actionlib.SimpleActionClient('/{}/move_base'.format(robot_id), MoveBaseAction)
+        print("[DEBUG] Waiting for MoveBase at /{}/move_base".format(robot_id))
+        self.move_base_api.wait_for_server()
 
         rospy.wait_for_service('/explorer_target')
         self.service_proxy = rospy.ServiceProxy('/explorer_target', ExplorerTargetService) # just for testing
@@ -63,25 +85,33 @@ class ExplorerClient():
 
     def loop(self):
         # TODO execute main functionality here
+        if (rospy.get_time() - self.last_update) > self._time_exceeded:
+            # This is so we can better now how the robots are spaced when detecting edge cases
+            for k, v in self.status.items():
+                print("{}: {}".format(k, v))
+            self.last_update = rospy.get_time()
+            self.request_publish_goal(ExplorerTargetServiceRequest.DEBUG)
+
+        if self.status["retry_timer"] > 0:
+            self.status["retry_timer"] -= 1
+
+        if self.status["retry_timer"] == 0:
+            self.status["retry_timer"] = -1
+            self.status["have_a_goal"] = False
+            self.status["mb_failure"] = False
+            self.status["target_reached"] = False
 
         if self.status["have_a_goal"]:
-            # This is so we can better now how the robots are spaced when detecting edge cases
-            if (self.last_update - rospy.get_time()) > self._time_exceeded:
-                print("[DEBUG] Sending my current pose to the server")
-                self.request_publish_goal(ExplorerTargetServiceRequest.DEBUG)
-                self.last_update = rospy.get_time()
+            pass
         elif self.status["mb_failure"]:
             print("[DEBUG] move_base failed, performing BLACKLIST request")
             self.request_publish_goal(ExplorerTargetServiceRequest.BLACKLIST)
-            self.last_update = rospy.get_time()
         elif self.status["target_reached"]:
             print("[DEBUG] move_base succeeded, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
-            self.last_update = rospy.get_time()
         elif not self.status["have_a_goal"]: # happens if our initial goal request fails
             print("[DEBUG] I do not have a goal, performing GET_TARGET request")
             self.request_publish_goal(ExplorerTargetServiceRequest.GET_TARGET)
-            self.last_update = rospy.get_time()
         
 
     ###############################
@@ -97,7 +127,9 @@ class ExplorerClient():
         """
         msg = MoveBaseGoal()
         msg.target_pose = goal
+        print("[DEBUG] Sent movebase {}".format(msg))
         self.move_base_api.send_goal(msg, done_cb=self.done_cb, active_cb=None, feedback_cb=self.feedback_cb)
+        print("[DEBUG] Api call done")
 
     def request_publish_goal(self, request_type):
         """ 
@@ -114,9 +146,28 @@ class ExplorerClient():
             request.robot_pose.pose.position = Point(trans[0], trans[1], trans[2])
             request.robot_pose.pose.orientation = Quaternion(rot[0], rot[1], rot[2], rot[3])
             request.previous_goal = self.goal # self.goal will always be previous until the server responds
-            self.response = self.service_proxy(request)
-            self.goal = self.response.target_position
+            response = self.service_proxy(request)
+            if request_type == ExplorerTargetServiceRequest.DEBUG:
+                print("[DEBUG] sent DEBUG request {}".format(request))
+                print("[DEBUG] got DEBUG response {}".format(response))
+                return
+            print("[DEBUG] sent request {}".format(request))
+            print("[DEBUG] got response {}".format(response))
+            new_goal = response.target_position.pose
+            if new_goal.position.x == 0 and new_goal.position.y == 0 and new_goal.position.z == 0:
+                print("[ALERT] Got an all zero goal position")
+                self.status["reset_timer"] = self.RESET_TIME
+                self.status["target_reached"] = False
+                self.status["have_a_goal"] = True
+                self.status["mb_failure"] = False
+                return -1
+            self.status["target_reached"] = False
+            self.status["have_a_goal"] = True
+            self.status["mb_failure"] = False
+            self.goal = response.target_position
+            self.goal.header.frame_id = "map_merge"
             self.send_move_base_goal(self.goal)
+            self.goal.header.stamp = rospy.Time.now()
             # when we get a new goal reset all of the status flags - done in move_base_simple/goal callback
             return 1
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -135,20 +186,28 @@ class ExplorerClient():
         goal_status -- integer representing the final state of the actionlib. Corresponds to GoalStatus
         msg -- Result message (empty for move_base)
         """
-        print("[DEBUG] MoveBase Action Done: Resulting code {}".format(goal_status))
         # TODO Handle other status values
         if goal_status == GoalStatus.SUCCEEDED:
+            print("[DEBUG] MoveBase Done CB: Succeeded")
             # Move base has succeeded, clear current goal
-            # self.goal = None
-            self.status["target_reached"] = 1
-            self.status["have_a_goal"] = 0
-            self.status["mb_failure"] = 0
-        if goal_status == GoalStatus.ABORTED:
+            self.status["target_reached"] = True
+            self.status["have_a_goal"] = False
+            self.status["mb_failure"] = False
+        elif goal_status == GoalStatus.ABORTED:
+            print("[DEBUG] MoveBase Done CB: Aborted")
             # move base has failed we need to get a new target
-            # self.goal = None
-            self.status["target_reached"] = 0
-            self.status["have_a_goal"] = 0
-            self.status["mb_failure"] = 1
+            self.status["target_reached"] = False
+            self.status["have_a_goal"] = False
+            self.status["mb_failure"] = True
+        elif goal_status == GoalStatus.PREEMPTED or goal_status == GoalStatus.PREEMPTING:
+            print("[DEBUG] MoveBase Done CB: Preempted")
+            # Move base got us close enough to preempt, clear current goal and force a different one
+            self.status["target_reached"] = True
+            self.status["have_a_goal"] = False
+            self.status["mb_failure"] = True
+        else:
+            print("[DEBUG] MoveBase Done CB: Unkown code {}".format(goal_status))
+
 
     def feedback_cb(self, msg):
         """
@@ -157,8 +216,24 @@ class ExplorerClient():
         Arguments:
         msg -- Feedback message containing the current robot pose from move base
         """
-        print("[DEBUG] MoveBase Feedback.")
-        self.status["have_a_goal"] = 1
-        self.status["target_reached"] = 0
-        self.status["mb_failure"] = 0
-        self.pose = msg.base_position
+        # We want to track how the robot moves:
+        # - If the robot has been in the same place for more than TIMEOUT callbacks, raise an alert
+        # - If the robot is close to the goal, trigger state to preempt
+        new_pose = msg.base_position
+
+        if utils.dist(new_pose, self.pose) < 0.01:
+            self._timeout_callback_tracker += 1
+        else:
+            self._timeout_callback_tracker = 0
+
+        if self._timeout_callback_tracker > self.TIMEOUT:
+            print("[ALERT] Probably want to clear costmaps here")
+
+        self.pose = new_pose
+        if utils.dist(self.pose, self.goal) < self.close_enough:
+            print("[ALERT] Canceling goals due to being close enough")
+            self.move_base_api.cancel_goals_at_and_before_time(self.goal.header.stamp)
+
+        if utils.dist(self.pose, self.goal) > self.too_far:
+            print("[ALERT] Canceling goals due to being too far")
+            self.move_base_api.cancel_goals_at_and_before_time(self.goal.header.stamp)

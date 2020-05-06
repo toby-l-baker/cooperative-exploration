@@ -187,7 +187,7 @@ class ExplorerServer():
         if front == None:
             print("Why are we letting the frontier be -1 here?")
             result = PoseStamped()
-            result.header.frame_id = "map"
+            result.header.frame_id = "map_merge"
             result.pose.orientation.w = 1
             return result
 
@@ -320,6 +320,7 @@ class ExplorerServer():
         if request_type == ExplorerTargetServiceRequest.DEBUG:
             print("[DEBUG] Request arrived from {}".format(robot_id))
             response.status_code = ExplorerTargetServiceResponse.SUCCESS
+            response.target_position = previous_goal
         if request_type == ExplorerTargetServiceRequest.GET_TARGET:
             try:
                 trans = robot_pose.pose.position
@@ -343,7 +344,7 @@ class ExplorerServer():
                 rot = robot_pose.pose.orientation
                 rot = [rot.x, rot.y, rot.z, rot.w]
                 to_blacklist = [previous_goal.pose.position.x, previous_goal.pose.position.y]
-                self.map_listener.blacklist.append(to_blacklist)
+                self.map_listener.add_to_blacklist(to_blacklist)
                 response.target_position = self.get_goal_pose(trans, rot, robot_id)
                 response.status_code = ExplorerTargetServiceResponse.SUCCESS
                 print("[DEBUG] BLACKLIST Request arrived from {}".format(robot_id))
@@ -355,4 +356,8 @@ class ExplorerServer():
                 traceback.print_exc()
                 response.status_code = ExplorerTargetServiceResponse.FAILURE
 
+        if response.target_position.pose.position.x == 0 and response.target_position.pose.position.y == 0 and response.target_position.pose.position.z == 0:
+            print("[ALERT] Would send goal of all zeros")
+
+        print("[DEBUG] Handled request with response {}".format(response))
         return response
