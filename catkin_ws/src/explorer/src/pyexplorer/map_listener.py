@@ -40,7 +40,7 @@ class MapListener():
         self.stdr_map_info = None
 
         # variable to store all frontiers
-        self.frontiers = None
+        self.frontiers = []
 
         # for the blacklist
         self.blacklist = []
@@ -126,6 +126,17 @@ class MapListener():
             output.append(marker)
         self.pub.publish(MarkerArray(markers=output))
 
+
+    def add_to_blacklist(self, pt):
+        """
+        Adds a point to the blacklist, and removes invalid frontiers from the frontier list.
+
+        Arguments:
+        pt -- numpy array [x, y] for point to blacklist
+        """
+        self.blacklist.append(pt)
+        self.frontiers, explored_cells = self.graph.search(self.blacklist, self.blacklist_thresh)
+        self.publish_frontier_markers(self.frontiers)
 
     ############################
     # Callback functions here
