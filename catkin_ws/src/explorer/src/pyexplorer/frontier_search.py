@@ -239,7 +239,7 @@ class Graph:
 
             # First check if we should blacklist the frontier
             for x, y in blacklist:
-                dist = np.sqrt((centroid[0] - x)**2 + (centroid[1] - y)**2)
+                dist = np.sqrt((centroid[1] - x)**2 + (centroid[0] - y)**2)
                 if dist < thresh:
                     frontiers[i].blacklisted = True
                     n_blacklisted += 1

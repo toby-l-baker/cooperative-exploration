@@ -1,3 +1,9 @@
+#
+# map_test.py: plots occupancy grid maps and frontier information, can be used for debugging
+#
+# author: toby
+#
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -7,6 +13,7 @@ import argparse as ap
 parser = ap.ArgumentParser()
 parser.add_argument('map_file', type=str)
 parser.add_argument('--plot_frontiers', action='store_true')
+parser.add_argument('--plot_filter', action='store_true')
 parser.add_argument('--plot_nearest', action='store_true')
 args = parser.parse_args()
 
@@ -64,19 +71,16 @@ def filter_frontiers(frontiers, data):
     """
 
 
-    # for i in range(len(frontiers)):
     unexplored_cells = 0
     checked_flags = np.zeros_like(data, dtype=bool)
     bfs = deque()
     frontiers = np.array([world2map(p) for p in frontiers])
     centroid = np.array([np.sum(frontiers[:, 0]), np.sum(frontiers[:, 1])], dtype=np.int32) / len(frontiers)
-    # start = np.array(world2map(centroid), dtype=int)
     start = np.array([int(centroid[1]), int(centroid[0])])
     print("STARTING: {}".format(start))
     if get_cell_type(data[start[0], start[1]]):
         start = nearest_cell(start, data.shape[0], data.shape[1], data, value=0)
-    # print("Start: {}\nCell Value: {} \nInverted {}".format(start, get_cell_type(map[start[0], start[1]]), get_cell_type(map[start[1], start[0]])))
-    # start = nearest_unexplored_cell(start, map.shape[0], map.shape[1], map)
+
     bfs.append(start)
     points = []
     while (bfs and (unexplored_cells < 100)):
@@ -89,8 +93,6 @@ def filter_frontiers(frontiers, data):
                 bfs.append(p)
                 points.append(p)
                 unexplored_cells += 1
-        # if unexplored_cells >= 50:
-        #     frontiers[i].big_enough = 1
     print("Cell Count {}".format(unexplored_cells))
     return np.array(points)
 
@@ -122,9 +124,12 @@ free = []
 unexplored = []
 rows, cols = data.shape
 
+row_lim = [260, 415]
+col_lim = [296, 413]
+
 # Generate a map for viewing in matplotlib by collating cell types
-for i in range(rows):
-    for j in range(cols):
+for i in range(row_lim[0], row_lim[1]):
+    for j in range(col_lim[0], col_lim[1]):
         if data[i, j] == -1:
             unexplored.append([i, j])
 
@@ -143,9 +148,9 @@ nearest_cell = nearest_cell(search_initial, data.shape[0], data.shape[1], data)
 plt.figure(1)
 
 # Plot the map with Matplotlib
-plt.scatter(unexplored[:, 1], unexplored[:, 0], s=1, marker='x')
-plt.scatter(free[:, 1], free[:, 0], s=2, marker='o')
-plt.scatter(occupied[:, 1], occupied[:, 0], s=2)
+plt.scatter(unexplored[:, 1], unexplored[:, 0], c='#80848c', marker='s')
+plt.scatter(free[:, 1], free[:, 0], c='white', marker='s')
+plt.scatter(occupied[:, 1], occupied[:, 0], c="black", marker='s')
 
 # Setup different colour for plotting frontiers
 x = np.arange(10)
@@ -170,14 +175,21 @@ if args.plot_frontiers:
         front = fronts[i]
         front = np.array([world2map(p) for p in front])
         color = colors[i % 10]
-        plt.scatter(points[:, 1], points[:, 0], c=color.reshape(1, 4))
-        plt.scatter(front[:, 0], front[:, 1], c=color.reshape(1, 4))
+        plt.scatter(front[:, 0], front[:, 1], marker='h', s=50, c=color.reshape(1, 4))
+        if args.plot_filter:
+            plt.scatter(points[:, 1], points[:, 0], marker='.', s=50, c='#87ff42')
         centroid = np.array([np.sum(front[:, 0]), np.sum(front[:, 1])]) / len(front)
-        plt.scatter(centroid[0], centroid[1], c='red')
+        plt.scatter(centroid[0], centroid[1], marker='D', c='red')
 
 if args.plot_nearest:
     plt.scatter(search_initial[0], search_initial[1], marker='x')
     plt.scatter(nearest_cell[0], nearest_cell[1], marker='x')
 
 plt.grid()
-plt.savefig(args.map_file[:-4]+'_{}_{}.png'.format(int(args.plot_frontiers), int(args.plot_nearest)))
+map_name = args.map_file.split('/')[-1]
+filename = map_name[:-4]+'_{}_{}_{}.png'.format(int(args.plot_frontiers), int(args.plot_filter), int(args.plot_nearest))
+print("Saving to {}".format(filename))
+plt.xlim(col_lim)
+plt.ylim(row_lim)
+plt.axis('off')
+plt.savefig(filename)
