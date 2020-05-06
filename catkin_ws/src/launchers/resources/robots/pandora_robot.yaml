@@ -16,7 +16,7 @@ robot:
           max_range: 4.09000015258789
           min_range: 0.0599999986588955
           num_rays: 667
-          frequency: 10
+          frequency: 30
           frame_id: laser_0
           pose:
             x: 0

@@ -80,3 +80,12 @@ def homog_from_pose(pose):
     g[0:3, 3] = p # set p of homogeneous transform
     return g
 
+def dist(ps1, ps2):
+    """
+    Helper function to get the distance between two PoseStamped objects
+    """
+    pos1 = ps1.pose.position
+    pos1 = np.array([pos1.x, pos1.y, pos1.z])
+    pos2 = ps2.pose.position
+    pos2 = np.array([pos2.x, pos2.y, pos2.z])
+    return np.linalg.norm(pos2 - pos1)
