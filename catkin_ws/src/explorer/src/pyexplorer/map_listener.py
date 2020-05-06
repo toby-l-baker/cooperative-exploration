@@ -137,7 +137,7 @@ class MapListener():
         pt -- numpy array [x, y] for point to blacklist
         """
         self.blacklist.append(pt)
-        self.frontiers, explored_cells = self.graph.search(self.blacklist, self.blacklist_thresh)
+        self.frontiers = self.graph.filter_frontiers(self.frontiers, self.blacklist, self.blacklist_thresh)
         self.publish_frontier_markers(self.frontiers)
 
     ############################
