@@ -152,11 +152,11 @@ class ExplorerServer():
         for frontier in frontiers:
             x, y = frontier.centroid
             dist = np.sqrt((pos.x - x)**2 + (pos.y - y)**2)
-            if (dist < self.sensing_radius) and frontier.big_enough:
+            if (dist < self.sensing_radius) and frontier.big_enough and not frontier.blacklisted:
                 return Case.NORMAL
             
 
-        # 3. if we have made it this far then all the frontier are far away
+        # 3. if we have made it this far then all the frontiers are far away
         return Case.NO_NEARBY_GOAL
 
     def get_goal_pose(self, trans, rot, robot_id):
@@ -223,13 +223,14 @@ class ExplorerServer():
         # 2. While we are iterating keep checking which is the best (the one with the max resultant separation)
         target = None
         best_distance = 0
+
         for frontier in frontier_list:
             x, y = frontier.centroid
             dist = 0
             # check the distance from this frontier to the other robots goals
             for id_, info in self.robot_info.items():
                 # make sure we aren't checking against ourselves
-                if id_ == robot_id:
+                if id_ == robot_id and info.goal is not None:
                     continue
                 other_goal = info.goal.pose.position
                 dist += np.sqrt((x - other_goal.x)**2 + (y - other_goal.y)**2) # dist rfom frontier to other robots goal
@@ -245,8 +246,10 @@ class ExplorerServer():
                     angle = angle + 2*np.pi
                 target["angle"] = angle # store parameters
                 target["location"] = frontier.centroid
-
-        return target
+        if target == None:
+            return self.select_frontier(robot_pose)
+        else:    
+            return target
 
     def select_frontier(self, robot_pose):
         """
@@ -267,13 +270,14 @@ class ExplorerServer():
         """
         frontier_list=self.map_listener.frontiers
         # for deciding which frontier to use
-        best_angle = 2*np.pi 
-        target = None
+        best_within = 2*np.pi 
+        best_outside = 2*np.pi
+        target_within = None
+        target_outside = None
 
         #1. Get information about the robots position
         g = homog_from_pose(robot_pose)
         g_inv = inverse_homog(g)
-
 
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
@@ -290,13 +294,18 @@ class ExplorerServer():
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
             if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted:
                 #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
-                if (frontier_store["angle"] < best_angle):
-                    target = frontier_store
-                    best_angle = frontier_store["angle"]
-        if target is not None:
-            return target
+                if (frontier_store["angle"] < best_within):
+                    target_within = frontier_store
+                    best_within = frontier_store["angle"]
+            elif frontier.big_enough and not frontier.blacklisted:
+                if (frontier_store["angle"] < best_outside):
+                    target_outside = frontier_store
+                    best_outside = frontier_store["angle"]
+
+        if target_within is not None:
+            return target_within
         else:
-            return None
+            return target_outside
 
 
     ###############################
