@@ -233,8 +233,8 @@ class ExplorerServer():
                     continue
                 other_goal = info.goal.pose.position
                 dist += np.sqrt((x - other_goal.x)**2 + (y - other_goal.y)**2) # dist rfom frontier to other robots goal
-            # if this is the best frontier we have found then store it
-            if dist > best_distance:
+            # if this is the best frontier we have found then store it (must also be big enough and not blacklisted)
+            if dist > best_distance and frontier.big_enough and not frontier.blacklisted:
                 best_distance = dist
                 target = {}
                 g = homog_from_pose(robot_pose)
@@ -288,7 +288,7 @@ class ExplorerServer():
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
-            if dist <= self.sensing_radius and frontier.big_enough:
+            if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted:
                 #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
                 if (frontier_store["angle"] < best_angle):
                     target = frontier_store
