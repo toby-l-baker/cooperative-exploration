@@ -44,7 +44,7 @@
         <param name="known_init_poses" value="true"/>
         <!-- Rate in Hz. Basic frequency on which this node discovers merges robots maps and publish merged map. 
         Increase this value if you want faster updates. -->
-        <param name="merging_rate" value="0.25"/>
+        <param name="merging_rate" value="1.50"/>
         <!-- Rate in Hz. Frequency on which this node discovers new robots. 
         Increase this value if you need more agile behaviour when adding new robots. Robots will be discovered sooner. -->
         <param name="discovery_rate" value="0.01"/>
