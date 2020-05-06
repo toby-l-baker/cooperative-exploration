@@ -36,7 +36,9 @@ class ExplorerClient():
         self.close_enough = 0.75 # distance in meters to preempt move_base and get new target
         self.too_far = 400.0 # distance in meters to preempt move_base and get new target
         self._time_exceeded = rospy.get_param("~time_exceeded", 20)
+        self._message_delay_time = rospy.Duration(rospy.get_param("~message_delay_time", 5))
         self.last_update = None
+        self.last_message_time = rospy.Time.now()
         self.listener = tf.TransformListener() # for getting robot pose in world frame
         # Stores the current goal travelling to
         self.goal = PoseStamped(header=Header(stamp=rospy.Time.now(), frame_id="map_merge"),
@@ -148,6 +150,10 @@ class ExplorerClient():
         """ 
         Function should be invoked once on setup and also every time we reach our goal move_
         """
+        if (request_type != ExplorerTargetServiceRequest.DEBUG and
+                rospy.Time.now() - self.last_message_time < self._message_delay_time):
+            return
+
         try:
             (trans,rot) = self.listener.lookupTransform('/map', '/{}'.format(self.robot_id), rospy.Time(0))
             # (trans,rot) = self.t.lookupTransform("/map", "{}".format(self.robot_id), rospy.Time(0))
@@ -162,7 +168,6 @@ class ExplorerClient():
             response = self.service_proxy(request)
             if request_type == ExplorerTargetServiceRequest.DEBUG:
                 print("[DEBUG] sent DEBUG request {}".format(request))
-                print("[DEBUG] got DEBUG response {}".format(response))
                 return
             print("[DEBUG] sent request {}".format(request))
             print("[DEBUG] got response {}".format(response))
@@ -173,6 +178,7 @@ class ExplorerClient():
                 self.status["target_reached"] = False
                 self.status["have_a_goal"] = True
                 self.status["mb_failure"] = False
+                self.last_message_time = rospy.Time.now()
                 return -1
             self.status["target_reached"] = False
             self.status["have_a_goal"] = True
@@ -180,6 +186,7 @@ class ExplorerClient():
             self.goal = self.convert_pose_to("map_merge", response.target_position)
             self.send_move_base_goal(self.goal)
             self.goal.header.stamp = rospy.Time.now()
+            self.last_message_time = rospy.Time.now()
             # when we get a new goal reset all of the status flags - done in move_base_simple/goal callback
             return 1
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
@@ -213,10 +220,10 @@ class ExplorerClient():
             self.status["mb_failure"] = True
         elif goal_status == GoalStatus.PREEMPTED or goal_status == GoalStatus.PREEMPTING:
             print("[DEBUG] MoveBase Done CB: Preempted")
-            # Move base got us close enough to preempt, clear current goal and force a different one
-            self.status["target_reached"] = True
+            self.status["target_reached"] = False
             self.status["have_a_goal"] = False
             self.status["mb_failure"] = True
+            # DON't DO THIS - it is infinite! Move base got us close enough to preempt, clear current goal and force a different one
         else:
             print("[DEBUG] MoveBase Done CB: Unkown code {}".format(goal_status))
 
@@ -244,8 +251,8 @@ class ExplorerClient():
         self.pose = new_pose
         if utils.dist(self.pose, self.goal) < self.close_enough:
             print("[ALERT] Canceling goals due to being close enough")
-            self.move_base_api.cancel_goals_at_and_before_time(self.goal.header.stamp)
+            self.move_base_api.cancel_goal()
 
         if utils.dist(self.pose, self.goal) > self.too_far:
             print("[ALERT] Canceling goals due to being too far")
-            self.move_base_api.cancel_goals_at_and_before_time(self.goal.header.stamp)
+            self.move_base_api.cancel_goal()
