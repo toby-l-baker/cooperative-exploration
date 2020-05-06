@@ -21,6 +21,8 @@
         <param name="init_pose_yaw" value="$(arg theta)"/> -->
     </group> 
 
+    <node pkg="node_pkg" type="path_length.py" respawn="false" name="path_length" output="screen" ns="$(arg robot_id)"/>
+
     <include file="$(find launchers)/launch/add_robot.launch">
         <arg name="robot_file" value="$(arg robot_file)"/>
         <arg name="x" value="$(arg x)"/>

@@ -11,7 +11,6 @@ import numpy as np
 
 from std_msgs.msg import Float64
 from nav_msgs.msg import Odometry
-
 from std_srvs.srv import Empty, EmptyResponse
 
 class PathLengthNode():
@@ -20,6 +19,7 @@ class PathLengthNode():
         self.last_time = None
         # Stores the current path length of the robot
         self.path_length = None
+        # self.robot_id = rospy.get_param("~robot_id")
         rospy.Subscriber('odom', Odometry, self.odom_callback)
 
         self.pub = rospy.Publisher('path_length', Float64, queue_size=10)
@@ -28,7 +28,8 @@ class PathLengthNode():
 
     def odom_callback(self, odom):
         now = odom.header.stamp
-        if self.last_time is None:
+        # initialisation
+        if self.last_time is None: 
             self.last_time = now
             self.path_length = 0.0
         else:
@@ -39,10 +40,10 @@ class PathLengthNode():
             v = twist.angular.z
 
             if np.isclose(u, 0.0):
-                # Rotating in place
-                self.path_length += np.abs(v) * delta_t.to_sec()
+                # Rotating in place, 1/pi units per radian
+                self.path_length += np.abs(v) * delta_t.to_sec() / np.pi
             else:
-                # Translating with tangential velocity u
+                # Translating with tangential velocity u, 1 unit per m
                 self.path_length += np.abs(u) * delta_t.to_sec()
 
     def publish_path_length(self):
@@ -65,6 +66,7 @@ def main():
     while not rospy.is_shutdown():
         try:
             node.publish_path_length()
+
         except Exception as e:
             pass
         finally:
