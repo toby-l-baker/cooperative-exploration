@@ -1,7 +1,8 @@
 <launch>
     <arg name="use_sim_time" default="false"/>
     <arg name="robot_file" default="pandora_robot"/>
-    <arg name="use_gui" default="true"/>
+    <arg name="use_rviz" default="true"/>
+    <arg name="use_stdr_gui" default="false"/>
 
     <param name="/use_sim_time" value="$(arg use_sim_time)"/>
 
@@ -12,7 +13,7 @@
 
     <!-- Start the stdr simulation with the chosen map -->
     <include file="$(find launchers)/launch/server_with_map_and_gui.launch">
-        <arg name="use_gui" value="$(arg use_gui)"/>
+        <arg name="use_gui" value="$(arg use_stdr_gui)"/>
     </include>
 
     <!-- Add the robot0 to the simulation -->
@@ -31,7 +32,7 @@
         <arg name="theta" value="-1.57"/>
     </include>
     
-    <group if="$(arg use_gui)">
+    <group if="$(arg use_rviz)">
         <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>
     </group>
 
