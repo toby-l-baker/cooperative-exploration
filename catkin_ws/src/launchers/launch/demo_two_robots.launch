@@ -1,10 +1,8 @@
 <launch>
     <!-- Launches two robots and starts the explorer server and clients -->
-
     <arg name="use_sim_time" default="false"/>
     <arg name="robot_file" default="pandora_robot"/>
-    <arg name="use_rviz" default="true"/>
-    <arg name="use_stdr_gui" default="false"/>
+    <arg name="use_rviz" default="true"/> <arg name="use_stdr_gui" default="false"/>
 
     <param name="/use_sim_time" value="$(arg use_sim_time)"/>
 
@@ -22,21 +20,23 @@
     <include file="$(find launchers)/launch/launch_robot.launch">
         <arg name="robot_id" value="robot0"/>
         <arg name="x" value="7"/>
-        <arg name="y" value="7.5"/>
+        <arg name="y" value="7"/>
         <arg name="theta" value="0"/>
     </include>
 
     <!-- Add the robot1 to the simulation -->
     <include file="$(find launchers)/launch/launch_robot.launch">
         <arg name="robot_id" value="robot1"/>
-        <arg name="x" value="9"/>
+        <arg name="x" value="7"/>
         <arg name="y" value="7"/>
-        <arg name="theta" value="-1.57"/>
+        <arg name="theta" value="0"/>
     </include>
     
     <group if="$(arg use_rviz)">
         <node pkg="rviz" type="rviz" name="rviz_node" output="screen" args="-d $(find launchers)/resources/rviz/mapping_multi_explore.rviz"/>
     </group>
+
+    <node pkg="tf" type="static_transform_publisher" name="world2map_merge" args="6.6 6.6 0 0 0 0 world map_merge 100" />
 
     <node pkg="multirobot_map_merge" type="map_merge" respawn="false" name="map_merge" output="screen">
         <param name="robot_map_topic" value="map"/>
@@ -46,12 +46,10 @@
         <param name="known_init_poses" value="true"/>
         <!-- Rate in Hz. Basic frequency on which this node discovers merges robots maps and publish merged map. 
         Increase this value if you want faster updates. -->
-        <param name="merging_rate" value="1.50"/>
+        <param name="merging_rate" value="2.00"/>
         <!-- Rate in Hz. Frequency on which this node discovers new robots. 
         Increase this value if you need more agile behaviour when adding new robots. Robots will be discovered sooner. -->
-        <param name="discovery_rate" value="0.01"/>
-        <param name="estimation_rate" value="0.1"/>
-        <param name="estimation_confidence" value="1.0"/>
+        <param name="discovery_rate" value="0.1"/>
     </node>
 
     <include file ="$(find launchers)/launch/explorer_server.launch"/>

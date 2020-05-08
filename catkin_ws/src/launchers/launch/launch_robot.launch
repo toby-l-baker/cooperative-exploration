@@ -7,10 +7,10 @@
 
     <!--Setup Initial Pose for Map Merging Package-->
     <group ns="/$(arg robot_id)/map_merge">
-        <param name="init_pose_x" value="0.0"/>
-        <param name="init_pose_y" value="0.0"/>
+        <param name="init_pose_x" value="$(arg x)"/>
+        <param name="init_pose_y" value="$(arg y)"/>
         <param name="init_pose_z" value="0.0"/>
-        <param name="init_pose_yaw" value="0.0"/>
+        <param name="init_pose_yaw" value="$(arg theta)"/>
     </group>
 
     <!--Setup Initial Pose for Frontier ID Package-->
@@ -21,7 +21,10 @@
         <param name="init_pose_yaw" value="$(arg theta)"/> -->
     </group> 
 
-    <node pkg="node_pkg" type="path_length.py" respawn="false" name="path_length" output="screen" ns="$(arg robot_id)"/>
+    <node pkg="node_pkg" type="path_length.py" respawn="false" name="path_length" ns="$(arg robot_id)"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="world2$(arg robot_id)_map"
+        args="$(arg x) $(arg y) 0 $(arg theta) 0 0 world $(arg robot_id)_map 100" />
 
     <include file="$(find launchers)/launch/add_robot.launch">
         <arg name="robot_file" value="$(arg robot_file)"/>
