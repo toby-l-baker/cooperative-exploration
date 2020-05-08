@@ -118,7 +118,7 @@ class MapListener():
             else:
                 col = ColorRGBA(b=1,a=1) # blue
             marker = Marker(header=Header(stamp=rospy.Time.now(),
-                                          frame_id="map_merge"),
+                                          frame_id="map"),
                                           id=i,
                                           type=2,
                                           pose=marker_pose,
