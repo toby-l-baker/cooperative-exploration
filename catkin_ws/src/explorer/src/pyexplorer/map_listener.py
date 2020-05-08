@@ -10,7 +10,7 @@ from geometry_msgs.msg import Pose, Point, Vector3
 from std_msgs.msg import Header, ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 import numpy as np
-from frontier_search import Graph, count_free_cells
+from frontier_search import Graph, count_free_cells, world2map, map2world, get_cell_type
 
 
 class MapListener():
@@ -24,6 +24,7 @@ class MapListener():
     def __init__(self):
         self.initialized = False
         # TODO use numpy representation for occupancy grid
+        self.graph = None
         self.occupancy_grid = None
         self.metadata = None
         self.new_map = False # indicates no new map present
@@ -72,8 +73,8 @@ class MapListener():
         if self.initialized:
             return
         # TODO additional setup here based on map data
-        self.initial_x = rospy.get_param('/robot1/init_pose_x')
-        self.initial_y = rospy.get_param('/robot1/init_pose_y')
+        self.initial_x = rospy.get_param('/robot0/init_pose_x')
+        self.initial_y = rospy.get_param('/robot0/init_pose_y')
         if (self.occupancy_grid is not None) and (self.initial_x is not None) and (self.initial_y is not None) and (self.stdr_map is not None) and (self.stdr_map_info is not None):
             initial = np.array([self.initial_x, self.initial_y])
             min_area = rospy.get_param('/min_frontier_area')
@@ -113,7 +114,7 @@ class MapListener():
             if front.blacklisted:
                 col = ColorRGBA(a=1) # black
             elif front.big_enough:
-                col = ColorRGBA(r=1,a=1) # red 
+                col = ColorRGBA(r=1,a=1) # red
             else:
                 col = ColorRGBA(b=1,a=1) # blue
             marker = Marker(header=Header(stamp=rospy.Time.now(),
@@ -139,6 +140,42 @@ class MapListener():
         self.blacklist.append(pt)
         self.frontiers = self.graph.filter_frontiers(self.frontiers, self.blacklist, self.blacklist_thresh)
         self.publish_frontier_markers(self.frontiers)
+
+    def raycast_to_obstacle(self, start, end, step_size=0.1):
+        """
+        Computes distance to first obstacle from start towards end.
+
+        Arguments:
+        start -- numpy array (x, y) point in world coordinates
+        end -- numpy array (x, y) point in world coordinates
+
+        Returns:
+        Distance to first obstacle from start towards end, or None if unexplored space is encountered first.
+        """
+        if self.graph is None:
+            print("OH NONONONONONON")
+            # Edge failure case
+            return None
+        m = self.graph.map
+        m_info = self.graph.info
+        m_origin = (m_info.origin.position.x, m_info.origin.position.y)
+        m_start = np.array(world2map(start, m_origin, m_info.resolution))
+        m_end = np.array(world2map(end, m_origin, m_info.resolution))
+        step = (m_end - m_start) / (np.linalg.norm(m_end - m_start))
+        step *= step_size
+        for i in range(int(np.linalg.norm(m_end - m_start) / step_size)):
+            pt = m_start + i * step
+            value = m[int(pt[0]), int(pt[1])]
+            print("Testing pt: {}, value = {}".format(pt, value))
+            if get_cell_type(value) == 0:
+                # Unexplored space
+                return None
+            if get_cell_type(value) == 2:
+                # Obstacle, return distance
+                world_pt = map2world(pt, m_origin, m_info.resolution)
+                return np.linalg.norm(world_pt - start)
+        # No obstacles found between start and end
+        return None
 
     ############################
     # Callback functions here

@@ -291,13 +291,15 @@ class ExplorerServer():
 
             if angle < 0: # shift from [-pi, pi] to [0, 2pi]
                 angle = angle + 2*np.pi
-            tmp = angle - np.pi/4 # for adjusting priority to front & left
+            tmp = angle # Disabling ... - np.pi/4 # for adjusting priority to front & left
             if tmp < 0:
                 tmp = tmp + 2*np.pi # move to 0 to 2pi range starting from 45deg from the y-axis
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
+            frontier_store["obstacle_dist"] = self.map_listener.raycast_to_obstacle(np.array([robot_pose.position.x, robot_pose.position.y]), frontier.centroid)
+            print("Obstacle_dist: {}".format(frontier_store["obstacle_dist"]))
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
-            if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted:
+            if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted and frontier_store["obstacle_dist"] is None:
                 #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
                 if (tmp < best_within):
                     target_within = frontier_store
