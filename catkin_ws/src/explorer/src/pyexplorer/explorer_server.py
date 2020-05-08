@@ -231,7 +231,10 @@ class ExplorerServer():
             # check the distance from this frontier to the other robots goals
             for id_, info in self.robot_info.items():
                 # make sure we aren't checking against ourselves
-                if id_ == robot_id and info.goal is not None:
+                if id_ == robot_id:
+                    continue
+                # If the goal hasn't been assigned yet, the also ignore
+                if info.goal is None:
                     continue
                 other_goal = info.goal.pose.position
                 dist += np.sqrt((x - other_goal.x)**2 + (y - other_goal.y)**2) # dist rfom frontier to other robots goal
