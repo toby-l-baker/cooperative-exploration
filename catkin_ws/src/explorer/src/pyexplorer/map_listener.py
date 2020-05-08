@@ -118,14 +118,14 @@ class MapListener():
             else:
                 col = ColorRGBA(b=1,a=1) # blue
             marker = Marker(header=Header(stamp=rospy.Time.now(),
-                                          frame_id="map"),
+                                          frame_id="map_merge"),
                                           id=i,
                                           type=2,
                                           pose=marker_pose,
                                           scale=Vector3(x=size,y=size,z=size),
                                           color=col)
             output.append(marker)
-        delete_markers = [Marker(header=Header(stamp=rospy.Time.now(), frame_id="map"), type=3)]
+        delete_markers = [Marker(header=Header(stamp=rospy.Time.now(), frame_id="map_merge"), type=3)]
         self.pub.publish(MarkerArray(markers=delete_markers))
         self.pub.publish(MarkerArray(markers=output))
 

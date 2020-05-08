@@ -45,13 +45,18 @@ def map2world(point, origin, scale):
 
     return ret
 
-def children4(point):
+def children4(point, map_shape):
     x, y = point.copy()
-    candidates = np.array([[x+1, y],
-                            [x-1, y],
-                            [x, y+1], 
-                            [x, y-1]])
-    return candidates
+    candidates = []
+    if x+1 < map_shape[0]:
+        candidates.append([x+1, y])
+    if x-1 >= 0:
+        candidates.append([x-1, y])
+    if y+1 < map_shape[1]:
+        candidates.append([x, y+1])
+    if y-1 >= 0:
+        candidates.append([x, y-1])
+    return np.array(candidates)
 
 def children8(point):
     x, y = point.copy()
@@ -87,7 +92,7 @@ def count_free_cells(map_, map_info):
 
     while bfs:
         idx = bfs.popleft()
-        for p in children4(idx):
+        for p in children4(idx, (map_info.height, map_info.width)):
             # Check that the cell is free and we haven't visited it before
             cell_type = get_cell_type(map_[p[0], p[1]])
             if (cell_type == 1) and not (explored_flags[p[0], p[1]]):
@@ -116,7 +121,7 @@ def nearest_cell(start, map_, value=1):
 
     while bfs:
         idx = bfs.popleft()
-        for p in children4(idx):
+        for p in children4(idx, map_.shape):
             cell_type = get_cell_type(map_[p[0], p[1]])
             # if the cell is free then use it
             if cell_type == value:
@@ -193,7 +198,7 @@ class Graph:
             if self.isLeafNode(idx):
                 self.leaf_nodes[self.q_to_fill].append(idx)
                 self.leaf_node_array[idx[0], idx[1]] = True
-            for p in children4(idx):
+            for p in children4(idx, self.map.shape):
                 # Check that the cell is free and we haven't visited it before
                 cell_type = get_cell_type(self.map[p[0], p[1]])
                 if (cell_type == 1) and not (self.explored_flags[p[0], p[1]]):
@@ -265,7 +270,7 @@ class Graph:
                 bfs.append(start)
                 while (bfs and (unexplored_cells < self.min_frontier_area)):
                     idx = bfs.popleft()
-                    for p in children4(idx):
+                    for p in children4(idx, self.map.shape):
                         # Check that the cell is free and we haven't visited it before
                         cell_type = get_cell_type(self.map[p[0], p[1]])
                         if (cell_type == 0) and not (checked_flags[p[0], p[1]]):
@@ -312,7 +317,7 @@ class Graph:
         if (cell_type != 1) or (self.leaf_node_array[point[0], point[1]] == True):
             return False
         
-        for p in children4(point):
+        for p in children4(point, self.map.shape):
             if get_cell_type(self.map[p[0], p[1]]) == 0:
                 return True
 
@@ -325,7 +330,7 @@ class Graph:
             return False
 
         # frontier cells have at least one neighbour that is a free cell
-        for p in children4(point):
+        for p in children4(point, self.map.shape):
             cell_type = get_cell_type(self.map[p[0], p[1]])
             if cell_type == 1: # 0 represents free space, 100 is a wall, -1 is an obstacle
                 return True
