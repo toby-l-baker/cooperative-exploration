@@ -5,7 +5,7 @@ import tf
 
 def get_pose_stamped_from_tf(trans, rot):
     ps = PoseStamped()
-    ps.header.frame_id = "map_merge"
+    ps.header.frame_id = "map"
     ps.header.stamp=rospy.Time.now()
     ps.pose.position.x=trans[0]
     ps.pose.position.y=trans[1]
