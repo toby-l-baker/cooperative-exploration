@@ -272,7 +272,7 @@ class ExplorerServer():
         frontier_list=self.map_listener.frontiers
         # for deciding which frontier to use
         best_within = 3*np.pi
-        best_outside = 3*np.pi
+        best_outside = 10000
         target_within = None
         target_outside = None
 
@@ -280,8 +280,19 @@ class ExplorerServer():
         g = homog_from_pose(robot_pose)
         g_inv = inverse_homog(g)
 
+        not_big_enough = 0
+        blacklisted = 0
+
         #2. Go through all frontiers and calc the Euclidean distance between them and the robot as well as the angle
         for frontier in frontier_list:
+            if not frontier.big_enough:
+                not_big_enough += 1
+                continue
+
+            if frontier.blacklisted:
+                blacklisted += 1
+                continue
+
             frontier_store = {}
             front_homog = np.hstack((frontier.centroid, np.array([0, 1]))) # convert frontier location to a homogeneous representation
             p = g_inv.dot(front_homog) # frontier location in local coordinates
@@ -291,29 +302,29 @@ class ExplorerServer():
 
             if angle < 0: # shift from [-pi, pi] to [0, 2pi]
                 angle = angle + 2*np.pi
-            tmp = angle # Disabling ... - np.pi/4 # for adjusting priority to front & left
-            if tmp < 0:
-                tmp = tmp + 2*np.pi # move to 0 to 2pi range starting from 45deg from the y-axis
             frontier_store["angle"] = angle # store parameters
             frontier_store["location"] = frontier.centroid
             if (dist <= self.sensing_radius):
                 frontier_store["blocked_line_of_sight"] = self.map_listener.raycast_to_obstacle(np.array([robot_pose.position.x, robot_pose.position.y]), frontier.centroid)
             else:
                 frontier_store["blocked_line_of_sight"] = True
+
             #3. Store them in 'within sensing radius' and 'out of sensing radius' data structures
-            if (dist <= self.sensing_radius) and frontier.big_enough and not frontier.blacklisted and not frontier_store["blocked_line_of_sight"]:
+            if (dist <= self.sensing_radius) and (not frontier_store["blocked_line_of_sight"]):
                 #4. pick the frontier with the smallest theta (start at 0 to the left of the robot)
-                if (tmp < best_within):
+                if (frontier_store["angle"] < best_within):
                     target_within = frontier_store
-                    best_within = tmp#frontier_store["angle"]
-            elif frontier.big_enough and not frontier.blacklisted:
-                if (tmp < best_outside):
-                    target_outside = frontier_store
-                    best_outside = tmp#frontier_store["angle"]
+                    best_within = frontier_store["angle"]
+
+            if (dist < best_outside):
+                target_outside = frontier_store
+                best_outside = dist
 
         if target_within is not None:
             return target_within
         else:
+            if target_outside is None:
+                print("This is a fail! target_outside is None - num frontiers = {}, num not_big_enough = {}, num blacklisted = {}".format(len(frontier_list), not_big_enough, blacklisted))
             return target_outside
 
 
