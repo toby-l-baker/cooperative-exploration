@@ -148,6 +148,12 @@ class ExplorerServer():
             dist = np.sqrt((pos.x - other_pos.x)**2 + (pos.y - other_pos.y)**2)
             if (dist < self.sensing_radius) and (info.goal is not None):
                 return Case.IN_PROXIMITY
+
+            if info.goal is not None:
+                other_pos = info.goal.pose.position
+                dist = np.sqrt((pos.x - other_pos.x)**2 + (pos.y - other_pos.y)**2)
+                if (dist < self.sensing_radius):
+                    return Case.IN_PROXIMITY
         
         # 2. Check if there are any frontiers in our sensing radius
         for frontier in frontiers:
@@ -157,8 +163,8 @@ class ExplorerServer():
                 return Case.NORMAL
             
 
-        # 3. if we have made it this far then all the frontiers are far away
-        return Case.NO_NEARBY_GOAL
+        # 3. if we have made it this far then all the frontiers are far away, but we choose closest by normal method
+        return Case.NORMAL
 
     def get_goal_pose(self, trans, rot, robot_id):
         """
