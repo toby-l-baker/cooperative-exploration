@@ -16,9 +16,10 @@
         <param name="odom_frame" value="$(arg robot_id)/odom"/>
 
         <!-- Controls map update frequency -->
-        <param name="temporalUpdate" value="0.5"/>
+        <param name="temporalUpdate" value="1.0"/>
         <param name="linearUpdate" value="0.3"/>
         <param name="particles" value="20"/>
+        <param name="throttle_scans" value="2"/>
     </node>
 
 </launch>
