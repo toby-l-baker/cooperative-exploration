@@ -143,14 +143,14 @@ class MapListener():
 
     def raycast_to_obstacle(self, start, end, step_size=0.1):
         """
-        Computes distance to first obstacle from start towards end.
+        Computes if there is an obstacle from start towards end.
 
         Arguments:
         start -- numpy array (x, y) point in world coordinates
         end -- numpy array (x, y) point in world coordinates
 
         Returns:
-        Distance to first obstacle from start towards end, or None if unexplored space is encountered first.
+        True if there is an obstacle, false if line of sight exists
         """
         if self.graph is None:
             print("OH NONONONONONON")
@@ -158,24 +158,26 @@ class MapListener():
             return None
         m = self.graph.map
         m_info = self.graph.info
-        m_origin = (m_info.origin.position.x, m_info.origin.position.y)
-        m_start = np.array(world2map(start, m_origin, m_info.resolution))
-        m_end = np.array(world2map(end, m_origin, m_info.resolution))
-        step = (m_end - m_start) / (np.linalg.norm(m_end - m_start))
+        m_origin = self.graph.map_origin
+        m_start = np.array(world2map(start, m_origin, m_info.resolution))[::-1]
+        m_end = np.array(world2map(end, m_origin, m_info.resolution))[::-1]
+        step = (m_start - m_end) / (np.linalg.norm(m_end - m_start))
         step *= step_size
+        break_on_unexplored = False
         for i in range(int(np.linalg.norm(m_end - m_start) / step_size)):
-            pt = m_start + i * step
+            pt = m_end + i * step
             value = m[int(pt[0]), int(pt[1])]
-            print("Testing pt: {}, value = {}".format(pt, value))
-            if get_cell_type(value) == 0:
+            if break_on_unexplored and get_cell_type(value) == 0:
                 # Unexplored space
-                return None
+                return True
+            if get_cell_type(value) == 1:
+                # Free space
+                break_on_unexplored = True
             if get_cell_type(value) == 2:
                 # Obstacle, return distance
-                world_pt = map2world(pt, m_origin, m_info.resolution)
-                return np.linalg.norm(world_pt - start)
+                return True
         # No obstacles found between start and end
-        return None
+        return False
 
     ############################
     # Callback functions here
