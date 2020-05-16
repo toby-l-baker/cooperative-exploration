@@ -4,12 +4,35 @@ All algorithms used for this project are outlines in `Robotics_Final_Project_Rep
 
 ## Dependencies
 
+1. A ROS Distro, we used ROS Melodic on Ubuntu 18.04 see [https://www.ros.org/]
+2. m-explore
+```
+cd catkin_ws/src/
+git clone https://github.com/hrnr/m-explore.git
+```
+3. stdr-simulator
+```
+cd catkin_ws/src/
+git clone https://github.com/stdr-simulator-ros-pkg/stdr_simulator.git
+```
+3. `sudo apt-get install ros-<distro>-slam-gmapping ros-<distro>-move-base ros-<distro>-navigation
+
 ## User Guide
 
+To launch one robot issue the commands below
+
 ```bash
-$ roslaunch launchers multi-sim-mapping # move base, gmapping, two robots and rviz
-$ rosrun explorer explorer_server_node.py # shows the frontiers, but does not of the functionality
-$ rosrun explorer explorer_client_node.py # Runs the clients with the server to go out and explore the map
+$ cd catkin_ws
+$ source devel/setup.bash
+$ roslaunch launchers demo_one_robot.launch 
+```
+
+To launch two robots use the commands below
+
+```bash
+$ cd catkin_ws
+$ source devel/setup.bash
+$ roslaunch launchers demo_two_robots.launch 
 ```
 
 ## Project Structure
